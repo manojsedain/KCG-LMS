@@ -102,7 +102,7 @@ exports.handler = async (event, context) => {
             };
         }
         
-        // Validate field lengths to prevent database errors
+        // Validate field lengths to prevent database errors and index size limits
         if (username.length > 50) {
             return {
                 statusCode: 400,
@@ -114,13 +114,76 @@ exports.handler = async (event, context) => {
             };
         }
         
-        if (hwid.length > 255) {
+        // Strict limits for indexed fields to prevent "index row size exceeds maximum" errors
+        // PostgreSQL btree index max is ~2704 bytes, so we need to be conservative
+        if (hwid.length > 500) {
+            console.error('HWID too long:', hwid.length, 'bytes');
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'HWID too long (max 255 characters)' 
+                    message: 'HWID too long (max 500 characters). Please contact support.' 
+                })
+            };
+        }
+        
+        if (fingerprint.length > 1000) {
+            console.error('Fingerprint too long:', fingerprint.length, 'bytes');
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Device fingerprint too long (max 1000 characters). Please contact support.' 
+                })
+            };
+        }
+        
+        // Check combined size of indexed fields (hwid + fingerprint)
+        const combinedIndexSize = hwid.length + fingerprint.length;
+        if (combinedIndexSize > 2000) { // Conservative limit well below 2704 bytes
+            console.error('Combined HWID+fingerprint too long:', combinedIndexSize, 'bytes');
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Device identification data too large. Please contact support.' 
+                })
+            };
+        }
+        
+        // Validate other field lengths
+        if (deviceName && deviceName.length > 100) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Device name too long (max 100 characters)' 
+                })
+            };
+        }
+        
+        if (browserInfo && browserInfo.length > 1000) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Browser info too long (max 1000 characters)' 
+                })
+            };
+        }
+        
+        if (osInfo && osInfo.length > 100) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'OS info too long (max 100 characters)' 
                 })
             };
         }
