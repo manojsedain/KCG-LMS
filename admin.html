@@ -1533,12 +1533,19 @@
             
             try {
                 const session = JSON.parse(localStorage.getItem('adminSession'));
+                if (!session || !session.token) {
+                    throw new Error('No valid admin session found');
+                }
+                
                 const search = document.getElementById('deviceSearch')?.value || '';
                 const sort = document.getElementById('deviceSort')?.value || 'created_desc';
                 
                 const response = await fetch('/.netlify/functions/deviceManagement', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: JSON.stringify({
                         action: 'listDevices',
                         token: session.token,
@@ -2745,6 +2752,217 @@
                 console.error('Delete script error:', error);
                 showToast('Failed to delete script', 'error');
             }
+        }
+        
+        // ===== LOGS MANAGEMENT FUNCTIONS =====
+        
+        function initLogs() {
+            // Export logs button
+            document.getElementById('exportLogsBtn')?.addEventListener('click', exportLogs);
+            
+            // Clear logs button
+            document.getElementById('clearLogsBtn')?.addEventListener('click', clearLogs);
+            
+            // Refresh logs button
+            document.getElementById('refreshLogsBtn')?.addEventListener('click', loadLogs);
+            
+            // Load logs on init
+            loadLogs();
+        }
+        
+        async function loadLogs() {
+            const container = document.getElementById('logsList');
+            if (!container) return;
+            
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                    <p>Loading logs...</p>
+                </div>
+            `;
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                if (!session || !session.token) {
+                    throw new Error('No valid session found');
+                }
+                
+                const response = await fetch('/.netlify/functions/logsManagement', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        action: 'getLogs',
+                        token: session.token,
+                        limit: 100
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayLogs(result.logs || []);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-red-400">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p>Failed to load logs: ${result.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Load logs error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p>Error loading logs</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayLogs(logs) {
+            const container = document.getElementById('logsList');
+            if (!container) return;
+            
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-file-alt text-4xl mb-4"></i>
+                        <p>No logs found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = logs.map(log => {
+                const levelColors = {
+                    'info': 'text-blue-400 bg-blue-400/10',
+                    'warn': 'text-yellow-400 bg-yellow-400/10',
+                    'error': 'text-red-400 bg-red-400/10',
+                    'success': 'text-green-400 bg-green-400/10'
+                };
+                
+                const levelColor = levelColors[log.level] || 'text-gray-400 bg-gray-400/10';
+                
+                return `
+                    <div class="bg-white/5 rounded-lg p-4 border border-white/10">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span class="px-2 py-1 text-xs rounded-full ${levelColor}">
+                                        ${log.level.toUpperCase()}
+                                    </span>
+                                    <span class="text-xs text-gray-500">
+                                        ${new Date(log.created_at).toLocaleString()}
+                                    </span>
+                                    ${log.username ? `<span class="text-xs text-gray-400">User: ${log.username}</span>` : ''}
+                                </div>
+                                <p class="text-sm text-gray-300 mb-1">${log.message}</p>
+                                ${log.details ? `<p class="text-xs text-gray-500 font-mono">${log.details}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function exportLogs() {
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                if (!session || !session.token) {
+                    throw new Error('No valid session found');
+                }
+                
+                showToast('Exporting logs...', 'info');
+                
+                const response = await fetch('/.netlify/functions/logsManagement', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        action: 'exportLogs',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Create and download CSV file
+                    const blob = new Blob([result.csvData], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `logs_${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    showToast('Logs exported successfully', 'success');
+                } else {
+                    showToast(result.message || 'Failed to export logs', 'error');
+                }
+            } catch (error) {
+                console.error('Export logs error:', error);
+                showToast('Failed to export logs', 'error');
+            }
+        }
+        
+        async function clearLogs() {
+            if (!confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                if (!session || !session.token) {
+                    throw new Error('No valid session found');
+                }
+                
+                showToast('Clearing logs...', 'info');
+                
+                const response = await fetch('/.netlify/functions/logsManagement', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        action: 'clearLogs',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Logs cleared successfully', 'success');
+                    loadLogs(); // Refresh logs list
+                } else {
+                    showToast(result.message || 'Failed to clear logs', 'error');
+                }
+            } catch (error) {
+                console.error('Clear logs error:', error);
+                showToast('Failed to clear logs', 'error');
+            }
+        }
+        
+        // ===== NOTIFICATIONS MANAGEMENT FUNCTIONS =====
+        
+        function initNotifications() {
+            // Add notification event listeners if needed
+            // This is a placeholder for notification management functionality
+        }
+        
+        function previewNotification() {
+            // Placeholder for notification preview functionality
+            showToast('Notification preview feature coming soon', 'info');
         }
         
         // Initialize all admin panel features
