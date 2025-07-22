@@ -115,31 +115,48 @@ exports.handler = async (event, context) => {
             let storedPasswordData = null;
             try {
                 storedPasswordData = await db.getSetting('admin_password');
+                console.log('Retrieved from database:', storedPasswordData ? 'password found' : 'no password');
             } catch (error) {
                 console.log('Database error, using environment fallback:', error.message);
                 storedPasswordData = process.env.ADMIN_PASSWORD || 'manakamana12';
+                console.log('Using environment fallback:', storedPasswordData ? 'env var found' : 'using default');
             }
             
             // For backward compatibility, check if it's a plain text password
             let isValidPassword = false;
+            console.log('Password comparison debug:', {
+                inputPasswordLength: password ? password.length : 0,
+                storedPasswordExists: !!storedPasswordData,
+                storedPasswordType: storedPasswordData && storedPasswordData.startsWith('$2b$') ? 'bcrypt' : 'plaintext',
+                bcryptAvailable: !!bcrypt,
+                envPassword: process.env.ADMIN_PASSWORD ? 'set' : 'not set'
+            });
+            
             if (bcrypt && storedPasswordData && storedPasswordData.startsWith('$2b$')) {
                 // It's a bcrypt hash and bcrypt is available
+                console.log('Using bcrypt comparison');
                 try {
                     isValidPassword = await bcrypt.compare(password, storedPasswordData);
+                    console.log('Bcrypt comparison result:', isValidPassword);
                 } catch (error) {
                     console.log('Bcrypt error, falling back to plain text:', error.message);
-                    isValidPassword = password === (process.env.ADMIN_PASSWORD || 'manakamana12');
+                    const fallbackPassword = process.env.ADMIN_PASSWORD || 'manakamana12';
+                    isValidPassword = password === fallbackPassword;
+                    console.log('Fallback comparison result:', isValidPassword, 'comparing with:', fallbackPassword);
                 }
             } else {
                 // Fallback to plain text comparison
                 const plainPassword = storedPasswordData || process.env.ADMIN_PASSWORD || 'manakamana12';
+                console.log('Using plain text comparison with:', plainPassword);
                 isValidPassword = password === plainPassword;
+                console.log('Plain text comparison result:', isValidPassword);
                 
                 // If login is successful with plain text and bcrypt is available, hash it for future use
                 if (isValidPassword && bcrypt) {
                     try {
                         const hashedPassword = await bcrypt.hash(password, 12);
                         await db.setSetting('admin_password', hashedPassword, 'string');
+                        console.log('Password hashed and stored for future use');
                     } catch (error) {
                         console.log('Could not hash password for future use:', error.message);
                     }
