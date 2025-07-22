@@ -488,13 +488,38 @@
 
         async function loadDashboardData() {
             try {
-                const response = await fetch('/.netlify/functions/getDashboardData');
+                // Get admin session token
+                const savedSession = localStorage.getItem('adminSession');
+                if (!savedSession) {
+                    showToast('Session expired, please login again', 'error');
+                    showLoginScreen();
+                    return;
+                }
+                
+                const session = JSON.parse(savedSession);
+                if (session.expires < Date.now()) {
+                    showToast('Session expired, please login again', 'error');
+                    showLoginScreen();
+                    return;
+                }
+                
+                const response = await fetch('/.netlify/functions/getDashboardData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: session.token })
+                });
+                
                 const data = await response.json();
                 
-                if (data.success) {
-                    updateDashboardStats(data.stats);
-                    updateDeviceChart(data.deviceActivity);
-                    updateRecentActivity(data.recentActivity);
+                if (data.success && data.dashboard) {
+                    updateDashboardStats(data.dashboard.stats);
+                    updateDeviceChart(data.dashboard.analytics?.usageByDay);
+                    updateRecentActivity(data.dashboard.recentLogs);
+                } else {
+                    console.error('Dashboard data error:', data.message);
+                    showToast(data.message || 'Failed to load dashboard data', 'error');
                 }
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
