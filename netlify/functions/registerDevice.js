@@ -33,7 +33,62 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const { username, hwid, fingerprint, deviceName, browserInfo, osInfo } = JSON.parse(event.body);
+        // Log request details for debugging
+        console.log('Register device request:', {
+            method: event.httpMethod,
+            contentLength: event.body ? event.body.length : 0,
+            headers: event.headers,
+            bodyPreview: event.body ? event.body.substring(0, 200) + '...' : 'No body'
+        });
+        
+        // Validate request body exists and is not too large
+        if (!event.body) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Request body is required' 
+                })
+            };
+        }
+        
+        if (event.body.length > 10000) { // 10KB limit
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Request body too large' 
+                })
+            };
+        }
+        
+        let requestData;
+        try {
+            requestData = JSON.parse(event.body);
+        } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Invalid JSON in request body' 
+                })
+            };
+        }
+        
+        const { username, hwid, fingerprint, deviceName, browserInfo, osInfo } = requestData;
+        
+        console.log('Parsed request data:', {
+            username: username ? username.substring(0, 20) + '...' : 'missing',
+            hwid: hwid ? hwid.substring(0, 20) + '...' : 'missing',
+            fingerprint: fingerprint ? fingerprint.substring(0, 20) + '...' : 'missing',
+            deviceName: deviceName || 'not provided',
+            browserInfo: browserInfo ? browserInfo.substring(0, 50) + '...' : 'not provided',
+            osInfo: osInfo || 'not provided'
+        });
 
         // Validate required fields
         if (!username || !hwid || !fingerprint) {
@@ -43,6 +98,29 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ 
                     success: false, 
                     message: 'Username, HWID, and fingerprint are required' 
+                })
+            };
+        }
+        
+        // Validate field lengths to prevent database errors
+        if (username.length > 50) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Username too long (max 50 characters)' 
+                })
+            };
+        }
+        
+        if (hwid.length > 255) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'HWID too long (max 255 characters)' 
                 })
             };
         }
