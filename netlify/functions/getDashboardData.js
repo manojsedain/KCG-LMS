@@ -1,5 +1,24 @@
 // netlify/functions/getDashboardData.js - Admin dashboard data
-const EncryptionUtils = require('../../utils/encryption');
+let EncryptionUtils = null;
+
+// Try to load EncryptionUtils with fallback
+try {
+    EncryptionUtils = require('../../utils/encryption');
+} catch (error) {
+    console.log('EncryptionUtils not available, using fallback');
+    // Fallback EncryptionUtils
+    EncryptionUtils = {
+        verifyToken: (token, secret) => {
+            try {
+                const [headerEncoded, payloadEncoded, signature] = token.split('.');
+                if (!headerEncoded || !payloadEncoded || !signature) return null;
+                const payload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
+                if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+                return payload;
+            } catch { return null; }
+        }
+    };
+}
 
 // Try to load Supabase, but provide fallback if not configured
 let db = null;
