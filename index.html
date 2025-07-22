@@ -199,6 +199,10 @@
                     <h3 class="text-2xl font-bold mb-6">Get Started</h3>
                     <div class="space-y-4">
                         <div>
+                            <label class="block text-sm font-medium mb-2 text-left">Username</label>
+                            <input type="text" id="username" class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter your username">
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium mb-2 text-left">Access Password</label>
                             <input type="password" id="accessPassword" class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter access password">
                         </div>
@@ -382,9 +386,15 @@
         async function handleDownload() {
             if (isLoading) return;
             
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('accessPassword').value.trim();
             const downloadText = document.getElementById('downloadText');
             const downloadLoader = document.getElementById('downloadLoader');
+            
+            if (!username) {
+                showToast('Please enter your username', 'error');
+                return;
+            }
             
             if (!password) {
                 showToast('Please enter the access password', 'error');
@@ -403,20 +413,21 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        password: password,
-                        action: 'download'
+                        username: username,
+                        sitePassword: password
                     })
                 });
                 
-                const result = await response.json();
-                
-                if (response.ok && result.success) {
+                if (response.ok) {
+                    // The loader endpoint returns the script directly, not JSON
+                    const scriptContent = await response.text();
+                    
                     // Create and download the script file
-                    const blob = new Blob([result.script], { type: 'text/javascript' });
+                    const blob = new Blob([scriptContent], { type: 'text/javascript' });
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `lms-ai-assistant-${result.username || 'user'}.user.js`;
+                    a.download = `loader-${username}.user.js`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -424,7 +435,13 @@
                     
                     showToast('Script downloaded successfully! Install it in ScriptCat/Tampermonkey.', 'success');
                 } else {
-                    showToast(result.message || 'Download failed. Please check your password.', 'error');
+                    // Handle error response
+                    try {
+                        const errorResult = await response.json();
+                        showToast(errorResult.message || 'Download failed. Please check your credentials.', 'error');
+                    } catch {
+                        showToast('Download failed. Please check your credentials.', 'error');
+                    }
                 }
             } catch (error) {
                 console.error('Download error:', error);
