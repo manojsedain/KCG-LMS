@@ -256,41 +256,589 @@
                 
                 <!-- Script Management Section -->
                 <div id="script-management-section" class="content-section hidden">
+                    <!-- Upload Script -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Upload New Script</h3>
+                            <button id="uploadScriptBtn" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-upload mr-2"></i>Upload Script
+                            </button>
+                        </div>
+                        
+                        <div id="uploadForm" class="hidden">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Script Name</label>
+                                    <input type="text" id="scriptName" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="LMS AI Assistant Main Script">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Version</label>
+                                    <input type="text" id="scriptVersion" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="1.0.0">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Description</label>
+                                <input type="text" id="scriptDescription" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Brief description of the script">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Script Content</label>
+                                <textarea id="scriptContent" rows="10" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary font-mono text-sm" placeholder="// ==UserScript==\n// @name         Your Script Name\n// @namespace    https://wrongnumber.netlify.app/\n// @version      1.0.0\n// @description  Your script description\n// @author       You\n// @match        https://king-lms.kcg.edu/ultra/*\n// @grant        none\n// ==/UserScript==\n\n(function() {\n    'use strict';\n    \n    // Your code here\n    console.log('Script loaded!');\n})();"></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium mb-2">Update Notes</label>
+                                <textarea id="updateNotes" rows="3" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="What's new in this version?"></textarea>
+                            </div>
+                            
+                            <div class="flex space-x-3">
+                                <button id="saveScriptBtn" class="bg-success hover:bg-success/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-save mr-2"></i>Save Script
+                                </button>
+                                <button id="cancelUploadBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-times mr-2"></i>Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Script List -->
                     <div class="glass rounded-xl p-6">
-                        <h3 class="text-lg font-semibold mb-4">Script Management</h3>
-                        <p class="text-gray-400">Upload and manage your LMS AI scripts here.</p>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Uploaded Scripts</h3>
+                            <button id="refreshScriptsBtn" class="bg-secondary hover:bg-secondary/80 text-white px-3 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh
+                            </button>
+                        </div>
+                        
+                        <div id="scriptsList" class="space-y-4">
+                            <div class="text-center py-8 text-gray-400">
+                                <i class="fas fa-code text-4xl mb-4"></i>
+                                <p>Loading scripts...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- System Settings Section -->
                 <div id="system-settings-section" class="content-section hidden">
+                    <!-- Password Settings -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Password Settings</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Admin Password</label>
+                                    <div class="flex space-x-2">
+                                        <input type="password" id="adminPassword" class="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Enter new admin password">
+                                        <button id="updateAdminPasswordBtn" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-key"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">Current: manakamana12</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Site Password</label>
+                                    <div class="flex space-x-2">
+                                        <input type="password" id="sitePassword" class="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Enter new site password">
+                                        <button id="updateSitePasswordBtn" class="bg-secondary hover:bg-secondary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-lock"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">Current: wrongnumber</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">JWT Secret</label>
+                                    <div class="flex space-x-2">
+                                        <input type="password" id="jwtSecret" class="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="JWT secret key">
+                                        <button id="generateJwtBtn" class="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                            <i class="fas fa-random"></i>
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-1">Used for session tokens</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Session Timeout (hours)</label>
+                                    <input type="number" id="sessionTimeout" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" value="24" min="1" max="168">
+                                    <p class="text-xs text-gray-400 mt-1">How long admin sessions last</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Database Settings -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Database Settings</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Supabase URL</label>
+                                <input type="url" id="supabaseUrl" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="https://your-project.supabase.co">
+                                <p class="text-xs text-gray-400 mt-1">Your Supabase project URL</p>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Service Role Key</label>
+                                <input type="password" id="supabaseKey" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Service role key">
+                                <p class="text-xs text-gray-400 mt-1">Supabase service role key</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 flex space-x-3">
+                            <button id="testConnectionBtn" class="bg-success hover:bg-success/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-plug mr-2"></i>Test Connection
+                            </button>
+                            <button id="saveDbSettingsBtn" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-save mr-2"></i>Save Settings
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Settings -->
                     <div class="glass rounded-xl p-6">
-                        <h3 class="text-lg font-semibold mb-4">System Settings</h3>
-                        <p class="text-gray-400">Configure system passwords and security settings.</p>
+                        <h3 class="text-lg font-semibold mb-4">Security Settings</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">Rate Limiting</h4>
+                                    <p class="text-sm text-gray-400">Limit API requests per IP</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="rateLimitToggle" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">Device Approval Required</h4>
+                                    <p class="text-sm text-gray-400">New devices need admin approval</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="deviceApprovalToggle" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">Encryption Enabled</h4>
+                                    <p class="text-sm text-gray-400">Encrypt scripts with AES</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="encryptionToggle" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Notifications Section -->
                 <div id="notifications-section" class="content-section hidden">
+                    <!-- Email Configuration -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Email Configuration</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">EmailJS Service ID</label>
+                                    <input type="text" id="emailjsServiceId" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="service_xxxxxxx">
+                                    <p class="text-xs text-gray-400 mt-1">Your EmailJS service ID</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">EmailJS Template ID</label>
+                                    <input type="text" id="emailjsTemplateId" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="template_xxxxxxx">
+                                    <p class="text-xs text-gray-400 mt-1">Email template for notifications</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">EmailJS Public Key</label>
+                                    <input type="text" id="emailjsPublicKey" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="user_xxxxxxxxxxxxxxx">
+                                    <p class="text-xs text-gray-400 mt-1">Your EmailJS public key</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Admin Email</label>
+                                    <input type="email" id="adminEmail" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="admin@example.com">
+                                    <p class="text-xs text-gray-400 mt-1">Where to send notifications</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-3 mt-4">
+                            <button id="testEmailBtn" class="bg-success hover:bg-success/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-envelope mr-2"></i>Send Test Email
+                            </button>
+                            <button id="saveEmailConfigBtn" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-save mr-2"></i>Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Notification Settings -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-4">Notification Settings</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">New Device Registration</h4>
+                                    <p class="text-sm text-gray-400">Email when new devices register</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="notifyNewDevice" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">Security Alerts</h4>
+                                    <p class="text-sm text-gray-400">Email for security events</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="notifySecurityAlert" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">System Errors</h4>
+                                    <p class="text-sm text-gray-400">Email for critical system errors</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="notifySystemError" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <h4 class="font-medium">Daily Summary</h4>
+                                    <p class="text-sm text-gray-400">Daily activity summary email</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="notifyDailySummary" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Send Custom Notification -->
                     <div class="glass rounded-xl p-6">
-                        <h3 class="text-lg font-semibold mb-4">Notifications</h3>
-                        <p class="text-gray-400">Configure EmailJS and notification settings.</p>
+                        <h3 class="text-lg font-semibold mb-4">Send Custom Notification</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Recipient</label>
+                                    <select id="notificationRecipient" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                                        <option value="admin">Admin Email</option>
+                                        <option value="all_users">All Users</option>
+                                        <option value="custom">Custom Email</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="customEmailDiv" class="hidden">
+                                    <label class="block text-sm font-medium mb-2">Custom Email</label>
+                                    <input type="email" id="customEmail" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="user@example.com">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Subject</label>
+                                <input type="text" id="notificationSubject" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Notification subject">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Message</label>
+                                <textarea id="notificationMessage" rows="4" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Your notification message..."></textarea>
+                            </div>
+                            
+                            <div class="flex space-x-3">
+                                <button id="sendNotificationBtn" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-paper-plane mr-2"></i>Send Notification
+                                </button>
+                                <button id="previewNotificationBtn" class="bg-secondary hover:bg-secondary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-eye mr-2"></i>Preview
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Logs Section -->
                 <div id="logs-section" class="content-section hidden">
+                    <!-- Log Controls -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">System Logs</h3>
+                            <div class="flex space-x-3">
+                                <button id="refreshLogsBtn" class="bg-secondary hover:bg-secondary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-sync-alt mr-2"></i>Refresh
+                                </button>
+                                <button id="exportLogsBtn" class="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-download mr-2"></i>Export
+                                </button>
+                                <button id="clearLogsBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-trash mr-2"></i>Clear Logs
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Log Filters -->
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Log Type</label>
+                                <select id="logTypeFilter" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                                    <option value="all">All Types</option>
+                                    <option value="admin">Admin Actions</option>
+                                    <option value="device">Device Events</option>
+                                    <option value="security">Security</option>
+                                    <option value="error">Errors</option>
+                                    <option value="system">System</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Log Level</label>
+                                <select id="logLevelFilter" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                                    <option value="all">All Levels</option>
+                                    <option value="info">Info</option>
+                                    <option value="warning">Warning</option>
+                                    <option value="error">Error</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Date Range</label>
+                                <select id="dateRangeFilter" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                                    <option value="today">Today</option>
+                                    <option value="week">This Week</option>
+                                    <option value="month">This Month</option>
+                                    <option value="all">All Time</option>
+                                    <option value="custom">Custom Range</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Search</label>
+                                <input type="text" id="logSearch" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Search logs...">
+                            </div>
+                        </div>
+                        
+                        <!-- Custom Date Range (hidden by default) -->
+                        <div id="customDateRange" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">From Date</label>
+                                <input type="datetime-local" id="fromDate" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">To Date</label>
+                                <input type="datetime-local" id="toDate" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Log Statistics -->
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                        <div class="glass rounded-xl p-4">
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm">Total Logs</p>
+                                <p id="totalLogsCount" class="text-xl font-bold">0</p>
+                            </div>
+                        </div>
+                        <div class="glass rounded-xl p-4">
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm">Info</p>
+                                <p id="infoLogsCount" class="text-xl font-bold text-blue-400">0</p>
+                            </div>
+                        </div>
+                        <div class="glass rounded-xl p-4">
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm">Warnings</p>
+                                <p id="warningLogsCount" class="text-xl font-bold text-warning">0</p>
+                            </div>
+                        </div>
+                        <div class="glass rounded-xl p-4">
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm">Errors</p>
+                                <p id="errorLogsCount" class="text-xl font-bold text-red-500">0</p>
+                            </div>
+                        </div>
+                        <div class="glass rounded-xl p-4">
+                            <div class="text-center">
+                                <p class="text-gray-400 text-sm">Critical</p>
+                                <p id="criticalLogsCount" class="text-xl font-bold text-red-600">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Logs List -->
                     <div class="glass rounded-xl p-6">
-                        <h3 class="text-lg font-semibold mb-4">System Logs</h3>
-                        <p class="text-gray-400">View admin actions and device logs.</p>
+                        <div id="logsList" class="space-y-2">
+                            <div class="text-center py-8 text-gray-400">
+                                <i class="fas fa-file-alt text-4xl mb-4"></i>
+                                <p>Loading logs...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div id="logsPagination" class="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
+                            <div class="text-sm text-gray-400">
+                                Showing <span id="logsShowing">0</span> of <span id="logsTotal">0</span> logs
+                            </div>
+                            <div class="flex space-x-2">
+                                <button id="logsPrevBtn" class="bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <span id="logsPageInfo" class="px-3 py-2 text-sm">Page 1 of 1</span>
+                                <button id="logsNextBtn" class="bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Devices Section -->
                 <div id="devices-section" class="content-section hidden">
+                    <!-- Device Stats -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Total Devices</p>
+                                    <p id="totalDevicesCount" class="text-2xl font-bold">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-laptop text-primary"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Approved</p>
+                                    <p id="approvedDevicesCount" class="text-2xl font-bold text-success">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-success/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-success"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Pending</p>
+                                    <p id="pendingDevicesCount" class="text-2xl font-bold text-warning">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-warning/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-warning"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Blocked</p>
+                                    <p id="blockedDevicesCount" class="text-2xl font-bold text-red-500">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-ban text-red-500"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Device Management Controls -->
+                    <div class="glass rounded-xl p-6 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Device Management</h3>
+                            <div class="flex space-x-3">
+                                <button id="refreshDevicesBtn" class="bg-secondary hover:bg-secondary/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-sync-alt mr-2"></i>Refresh
+                                </button>
+                                <button id="bulkApproveBtn" class="bg-success hover:bg-success/80 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-check-double mr-2"></i>Bulk Approve
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter Tabs -->
+                        <div class="flex space-x-2 mb-4">
+                            <button class="device-filter-tab active bg-primary/20 text-primary px-4 py-2 rounded-lg transition-colors" data-filter="all">
+                                All Devices
+                            </button>
+                            <button class="device-filter-tab bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors" data-filter="pending">
+                                Pending <span id="pendingBadge" class="ml-1 bg-warning text-white text-xs px-2 py-1 rounded-full">0</span>
+                            </button>
+                            <button class="device-filter-tab bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors" data-filter="approved">
+                                Approved
+                            </button>
+                            <button class="device-filter-tab bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg transition-colors" data-filter="blocked">
+                                Blocked
+                            </button>
+                        </div>
+                        
+                        <!-- Search and Sort -->
+                        <div class="flex space-x-4 mb-4">
+                            <div class="flex-1">
+                                <input type="text" id="deviceSearch" class="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Search devices by username, device ID, or IP...">
+                            </div>
+                            <select id="deviceSort" class="bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary">
+                                <option value="created_desc">Newest First</option>
+                                <option value="created_asc">Oldest First</option>
+                                <option value="username_asc">Username A-Z</option>
+                                <option value="username_desc">Username Z-A</option>
+                                <option value="last_active_desc">Recently Active</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Device List -->
                     <div class="glass rounded-xl p-6">
-                        <h3 class="text-lg font-semibold mb-4">Device Management</h3>
-                        <p class="text-gray-400">Manage registered devices and permissions.</p>
+                        <div id="devicesList" class="space-y-4">
+                            <div class="text-center py-8 text-gray-400">
+                                <i class="fas fa-laptop text-4xl mb-4"></i>
+                                <p>Loading devices...</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div id="devicesPagination" class="flex items-center justify-between mt-6 pt-4 border-t border-white/10">
+                            <div class="text-sm text-gray-400">
+                                Showing <span id="devicesShowing">0</span> of <span id="devicesTotal">0</span> devices
+                            </div>
+                            <div class="flex space-x-2">
+                                <button id="devicesPrevBtn" class="bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <span id="devicesPageInfo" class="px-3 py-2 text-sm">Page 1 of 1</span>
+                                <button id="devicesNextBtn" class="bg-white/5 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -347,7 +895,13 @@
                 link.addEventListener('click', handleNavigation);
             });
             
-            // Logout
+            // Initialize navigation
+            initNavigation();
+            
+            // Initialize all admin features
+            initAdminFeatures();
+            
+            // Initialize logout button
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', handleLogout);
@@ -635,6 +1189,573 @@
             }
         });
 
+        // ===== SCRIPT MANAGEMENT FUNCTIONS =====
+        
+        function initScriptManagement() {
+            // Upload script button
+            document.getElementById('uploadScriptBtn')?.addEventListener('click', () => {
+                const form = document.getElementById('uploadForm');
+                form.classList.toggle('hidden');
+            });
+            
+            // Cancel upload
+            document.getElementById('cancelUploadBtn')?.addEventListener('click', () => {
+                document.getElementById('uploadForm').classList.add('hidden');
+                clearScriptForm();
+            });
+            
+            // Save script
+            document.getElementById('saveScriptBtn')?.addEventListener('click', saveScript);
+            
+            // Refresh scripts
+            document.getElementById('refreshScriptsBtn')?.addEventListener('click', loadScripts);
+            
+            // Load scripts on init
+            loadScripts();
+        }
+        
+        function clearScriptForm() {
+            document.getElementById('scriptName').value = '';
+            document.getElementById('scriptVersion').value = '';
+            document.getElementById('scriptDescription').value = '';
+            document.getElementById('scriptContent').value = '';
+            document.getElementById('updateNotes').value = '';
+        }
+        
+        async function saveScript() {
+            const name = document.getElementById('scriptName').value;
+            const version = document.getElementById('scriptVersion').value;
+            const description = document.getElementById('scriptDescription').value;
+            const content = document.getElementById('scriptContent').value;
+            const updateNotes = document.getElementById('updateNotes').value;
+            
+            if (!name || !version || !content) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/manageScripts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'uploadScript',
+                        token: session.token,
+                        name,
+                        version,
+                        description,
+                        content,
+                        updateNotes
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Script uploaded successfully!', 'success');
+                    document.getElementById('uploadForm').classList.add('hidden');
+                    clearScriptForm();
+                    loadScripts();
+                } else {
+                    showToast(result.message || 'Failed to upload script', 'error');
+                }
+            } catch (error) {
+                console.error('Script upload error:', error);
+                showToast('Failed to upload script', 'error');
+            }
+        }
+        
+        async function loadScripts() {
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/manageScripts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'listScripts',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayScripts(result.scripts);
+                } else {
+                    showToast('Failed to load scripts', 'error');
+                }
+            } catch (error) {
+                console.error('Load scripts error:', error);
+                showToast('Failed to load scripts', 'error');
+            }
+        }
+        
+        function displayScripts(scripts) {
+            const container = document.getElementById('scriptsList');
+            
+            if (!scripts || scripts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-code text-4xl mb-4"></i>
+                        <p>No scripts uploaded yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = scripts.map(script => `
+                <div class="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-code text-primary"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold">${script.name}</h4>
+                                <p class="text-sm text-gray-400">v${script.version}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${script.is_active ? '<span class="bg-success/20 text-success px-2 py-1 rounded text-xs">Active</span>' : ''}
+                            <button onclick="viewScript(${script.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-eye mr-1"></i>View
+                            </button>
+                            <button onclick="setActiveScript(${script.id})" class="bg-success hover:bg-success/80 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-check mr-1"></i>Activate
+                            </button>
+                            <button onclick="deleteScript(${script.id})" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-trash mr-1"></i>Delete
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-2">${script.description || 'No description'}</p>
+                    <div class="flex items-center justify-between text-xs text-gray-400">
+                        <span>Size: ${(script.file_size / 1024).toFixed(1)} KB</span>
+                        <span>Downloads: ${script.downloads || 0}</span>
+                        <span>Created: ${new Date(script.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function setActiveScript(scriptId) {
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/manageScripts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'setActiveScript',
+                        token: session.token,
+                        scriptId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Script activated successfully!', 'success');
+                    loadScripts();
+                } else {
+                    showToast(result.message || 'Failed to activate script', 'error');
+                }
+            } catch (error) {
+                console.error('Activate script error:', error);
+                showToast('Failed to activate script', 'error');
+            }
+        }
+        
+        async function deleteScript(scriptId) {
+            if (!confirm('Are you sure you want to delete this script?')) return;
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/manageScripts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'deleteScript',
+                        token: session.token,
+                        scriptId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Script deleted successfully!', 'success');
+                    loadScripts();
+                } else {
+                    showToast(result.message || 'Failed to delete script', 'error');
+                }
+            } catch (error) {
+                console.error('Delete script error:', error);
+                showToast('Failed to delete script', 'error');
+            }
+        }
+        
+        // ===== DEVICE MANAGEMENT FUNCTIONS =====
+        
+        function initDeviceManagement() {
+            // Filter tabs
+            document.querySelectorAll('.device-filter-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    document.querySelectorAll('.device-filter-tab').forEach(t => {
+                        t.classList.remove('active', 'bg-primary/20', 'text-primary');
+                        t.classList.add('bg-white/5', 'hover:bg-white/10');
+                    });
+                    e.target.classList.add('active', 'bg-primary/20', 'text-primary');
+                    e.target.classList.remove('bg-white/5', 'hover:bg-white/10');
+                    
+                    loadDevices(e.target.dataset.filter);
+                });
+            });
+            
+            // Refresh devices
+            document.getElementById('refreshDevicesBtn')?.addEventListener('click', () => loadDevices());
+            
+            // Bulk approve
+            document.getElementById('bulkApproveBtn')?.addEventListener('click', bulkApproveDevices);
+            
+            // Search and sort
+            document.getElementById('deviceSearch')?.addEventListener('input', debounce(loadDevices, 500));
+            document.getElementById('deviceSort')?.addEventListener('change', loadDevices);
+            
+            // Load devices on init
+            loadDevices();
+        }
+        
+        async function loadDevices(filter = 'all') {
+            const container = document.getElementById('devicesList');
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-laptop text-4xl mb-4"></i>
+                    <p>Loading devices...</p>
+                </div>
+            `;
+            
+            // Simulate device data for demo
+            setTimeout(() => {
+                const demoDevices = [
+                    {
+                        id: 1,
+                        username: 'student1',
+                        device_id: 'DEV001',
+                        status: 'approved',
+                        ip_address: '192.168.1.100',
+                        user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        created_at: new Date().toISOString(),
+                        last_active: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        username: 'student2',
+                        device_id: 'DEV002',
+                        status: 'pending',
+                        ip_address: '192.168.1.101',
+                        user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                        created_at: new Date().toISOString(),
+                        last_active: new Date().toISOString()
+                    }
+                ];
+                
+                displayDevices(demoDevices, filter);
+                updateDeviceStats(demoDevices);
+            }, 1000);
+        }
+        
+        function displayDevices(devices, filter = 'all') {
+            const container = document.getElementById('devicesList');
+            
+            let filteredDevices = devices;
+            if (filter !== 'all') {
+                filteredDevices = devices.filter(device => device.status === filter);
+            }
+            
+            if (filteredDevices.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-laptop text-4xl mb-4"></i>
+                        <p>No devices found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredDevices.map(device => `
+                <div class="bg-white/5 rounded-lg p-4 border border-white/10">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-laptop text-primary"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold">${device.username}</h4>
+                                <p class="text-sm text-gray-400">${device.device_id}</p>
+                                <p class="text-xs text-gray-500">${device.ip_address}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="px-3 py-1 rounded-full text-xs ${
+                                device.status === 'approved' ? 'bg-success/20 text-success' :
+                                device.status === 'pending' ? 'bg-warning/20 text-warning' :
+                                'bg-red-500/20 text-red-500'
+                            }">
+                                ${device.status.charAt(0).toUpperCase() + device.status.slice(1)}
+                            </span>
+                            ${device.status === 'pending' ? `
+                                <button onclick="approveDevice(${device.id})" class="bg-success hover:bg-success/80 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-check mr-1"></i>Approve
+                                </button>
+                            ` : ''}
+                            <button onclick="blockDevice(${device.id})" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-ban mr-1"></i>Block
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-gray-400">
+                        <p>Last Active: ${new Date(device.last_active).toLocaleString()}</p>
+                        <p class="truncate">User Agent: ${device.user_agent}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateDeviceStats(devices) {
+            const total = devices.length;
+            const approved = devices.filter(d => d.status === 'approved').length;
+            const pending = devices.filter(d => d.status === 'pending').length;
+            const blocked = devices.filter(d => d.status === 'blocked').length;
+            
+            document.getElementById('totalDevicesCount').textContent = total;
+            document.getElementById('approvedDevicesCount').textContent = approved;
+            document.getElementById('pendingDevicesCount').textContent = pending;
+            document.getElementById('blockedDevicesCount').textContent = blocked;
+            document.getElementById('pendingBadge').textContent = pending;
+        }
+        
+        // ===== LOGS MANAGEMENT FUNCTIONS =====
+        
+        function initLogsManagement() {
+            // Filter controls
+            document.getElementById('logTypeFilter')?.addEventListener('change', loadLogs);
+            document.getElementById('logLevelFilter')?.addEventListener('change', loadLogs);
+            document.getElementById('dateRangeFilter')?.addEventListener('change', handleDateRangeChange);
+            document.getElementById('logSearch')?.addEventListener('input', debounce(loadLogs, 500));
+            
+            // Action buttons
+            document.getElementById('refreshLogsBtn')?.addEventListener('click', loadLogs);
+            document.getElementById('exportLogsBtn')?.addEventListener('click', exportLogs);
+            document.getElementById('clearLogsBtn')?.addEventListener('click', clearLogs);
+            
+            // Load logs on init
+            loadLogs();
+        }
+        
+        function handleDateRangeChange() {
+            const dateRange = document.getElementById('dateRangeFilter').value;
+            const customRange = document.getElementById('customDateRange');
+            
+            if (dateRange === 'custom') {
+                customRange.classList.remove('hidden');
+            } else {
+                customRange.classList.add('hidden');
+                loadLogs();
+            }
+        }
+        
+        async function loadLogs() {
+            const container = document.getElementById('logsList');
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-file-alt text-4xl mb-4"></i>
+                    <p>Loading logs...</p>
+                </div>
+            `;
+            
+            // Simulate log data for demo
+            setTimeout(() => {
+                const demoLogs = [
+                    {
+                        id: 1,
+                        log_type: 'admin',
+                        level: 'info',
+                        message: 'Admin login successful',
+                        details: { ip: '192.168.1.1' },
+                        created_at: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        log_type: 'device',
+                        level: 'info',
+                        message: 'New device registration',
+                        details: { username: 'student1', device_id: 'DEV001' },
+                        created_at: new Date(Date.now() - 3600000).toISOString()
+                    },
+                    {
+                        id: 3,
+                        log_type: 'security',
+                        level: 'warning',
+                        message: 'Failed login attempt',
+                        details: { ip: '192.168.1.100', attempts: 3 },
+                        created_at: new Date(Date.now() - 7200000).toISOString()
+                    }
+                ];
+                
+                displayLogs(demoLogs);
+                updateLogStats(demoLogs);
+            }, 1000);
+        }
+        
+        function displayLogs(logs) {
+            const container = document.getElementById('logsList');
+            
+            if (!logs || logs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-file-alt text-4xl mb-4"></i>
+                        <p>No logs found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = logs.map(log => `
+                <div class="flex items-start space-x-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center ${
+                        log.level === 'error' || log.level === 'critical' ? 'bg-red-500/20' :
+                        log.level === 'warning' ? 'bg-warning/20' :
+                        'bg-blue-500/20'
+                    }">
+                        <i class="fas fa-${
+                            log.level === 'error' || log.level === 'critical' ? 'exclamation-triangle' :
+                            log.level === 'warning' ? 'exclamation' :
+                            'info'
+                        } text-${
+                            log.level === 'error' || log.level === 'critical' ? 'red-500' :
+                            log.level === 'warning' ? 'warning' :
+                            'blue-400'
+                        } text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-medium">${log.message}</span>
+                            <span class="text-xs text-gray-400">${new Date(log.created_at).toLocaleString()}</span>
+                        </div>
+                        <div class="flex items-center space-x-4 text-xs text-gray-400">
+                            <span class="px-2 py-1 bg-white/10 rounded">${log.log_type}</span>
+                            <span class="px-2 py-1 bg-white/10 rounded">${log.level}</span>
+                            ${log.details ? `<span class="text-gray-500">${JSON.stringify(log.details)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateLogStats(logs) {
+            const total = logs.length;
+            const info = logs.filter(l => l.level === 'info').length;
+            const warning = logs.filter(l => l.level === 'warning').length;
+            const error = logs.filter(l => l.level === 'error').length;
+            const critical = logs.filter(l => l.level === 'critical').length;
+            
+            document.getElementById('totalLogsCount').textContent = total;
+            document.getElementById('infoLogsCount').textContent = info;
+            document.getElementById('warningLogsCount').textContent = warning;
+            document.getElementById('errorLogsCount').textContent = error;
+            document.getElementById('criticalLogsCount').textContent = critical;
+        }
+        
+        // ===== NOTIFICATIONS FUNCTIONS =====
+        
+        function initNotifications() {
+            // Email configuration
+            document.getElementById('testEmailBtn')?.addEventListener('click', testEmail);
+            document.getElementById('saveEmailConfigBtn')?.addEventListener('click', saveEmailConfig);
+            
+            // Custom notification
+            document.getElementById('notificationRecipient')?.addEventListener('change', handleRecipientChange);
+            document.getElementById('sendNotificationBtn')?.addEventListener('click', sendNotification);
+            document.getElementById('previewNotificationBtn')?.addEventListener('click', previewNotification);
+        }
+        
+        function handleRecipientChange() {
+            const recipient = document.getElementById('notificationRecipient').value;
+            const customEmailDiv = document.getElementById('customEmailDiv');
+            
+            if (recipient === 'custom') {
+                customEmailDiv.classList.remove('hidden');
+            } else {
+                customEmailDiv.classList.add('hidden');
+            }
+        }
+        
+        async function testEmail() {
+            showToast('Sending test email...', 'info');
+            
+            // Simulate email sending
+            setTimeout(() => {
+                showToast('Test email sent successfully!', 'success');
+            }, 2000);
+        }
+        
+        async function saveEmailConfig() {
+            const serviceId = document.getElementById('emailjsServiceId').value;
+            const templateId = document.getElementById('emailjsTemplateId').value;
+            const publicKey = document.getElementById('emailjsPublicKey').value;
+            const adminEmail = document.getElementById('adminEmail').value;
+            
+            if (!serviceId || !templateId || !publicKey || !adminEmail) {
+                showToast('Please fill in all email configuration fields', 'error');
+                return;
+            }
+            
+            showToast('Email configuration saved successfully!', 'success');
+        }
+        
+        async function sendNotification() {
+            const recipient = document.getElementById('notificationRecipient').value;
+            const subject = document.getElementById('notificationSubject').value;
+            const message = document.getElementById('notificationMessage').value;
+            
+            if (!subject || !message) {
+                showToast('Please fill in subject and message', 'error');
+                return;
+            }
+            
+            showToast('Sending notification...', 'info');
+            
+            // Simulate notification sending
+            setTimeout(() => {
+                showToast('Notification sent successfully!', 'success');
+                document.getElementById('notificationSubject').value = '';
+                document.getElementById('notificationMessage').value = '';
+            }, 2000);
+        }
+        
+        // ===== UTILITY FUNCTIONS =====
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Initialize all admin panel features
+        function initAdminFeatures() {
+            initScriptManagement();
+            initDeviceManagement();
+            initLogsManagement();
+            initNotifications();
+        }
+        
         // Security measures
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
