@@ -13,6 +13,7 @@ const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'false',
     'Content-Type': 'application/javascript'
 };
 
