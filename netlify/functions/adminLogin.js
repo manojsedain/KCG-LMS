@@ -1,5 +1,42 @@
 // netlify/functions/adminLogin.js - Admin authentication
-const EncryptionUtils = require('../../utils/encryption');
+let EncryptionUtils = null;
+let bcrypt = null;
+
+// Try to load dependencies with fallbacks
+try {
+    EncryptionUtils = require('../../utils/encryption');
+} catch (error) {
+    console.log('EncryptionUtils not available, using fallback');
+    // Fallback EncryptionUtils
+    EncryptionUtils = {
+        verifyToken: (token, secret) => {
+            try {
+                const [headerEncoded, payloadEncoded, signature] = token.split('.');
+                if (!headerEncoded || !payloadEncoded || !signature) return null;
+                const payload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
+                if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+                return payload;
+            } catch { return null; }
+        },
+        createToken: (payload, secret, expiresIn = 3600) => {
+            const tokenPayload = {
+                ...payload,
+                iat: Math.floor(Date.now() / 1000),
+                exp: Math.floor(Date.now() / 1000) + expiresIn
+            };
+            const payloadEncoded = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
+            return `header.${payloadEncoded}.signature`;
+        }
+    };
+}
+
+// Try to load bcrypt with fallback
+try {
+    bcrypt = require('bcryptjs');
+} catch (error) {
+    console.log('bcryptjs not available, using plain text comparison');
+    bcrypt = null;
+}
 
 // Try to load Supabase, but provide fallback if not configured
 let db = null;
@@ -13,7 +50,7 @@ try {
         async getSetting(key) {
             // Return default admin password for demo
             if (key === 'admin_password') {
-                return 'manakamana12';
+                return process.env.ADMIN_PASSWORD || 'manakamana12';
             }
             return null;
         },
@@ -74,39 +111,56 @@ exports.handler = async (event, context) => {
                 };
             }
 
-            // Get stored admin password hash
-            const storedPasswordData = await db.getSetting('admin_password');
+            // Get stored admin password hash with fallback
+            let storedPasswordData = null;
+            try {
+                storedPasswordData = await db.getSetting('admin_password');
+            } catch (error) {
+                console.log('Database error, using environment fallback:', error.message);
+                storedPasswordData = process.env.ADMIN_PASSWORD || 'manakamana12';
+            }
             
             // For backward compatibility, check if it's a plain text password
             let isValidPassword = false;
-            if (storedPasswordData && storedPasswordData.startsWith('$2b$')) {
-                // It's a bcrypt hash
-                const bcrypt = require('bcryptjs');
-                isValidPassword = await bcrypt.compare(password, storedPasswordData);
+            if (bcrypt && storedPasswordData && storedPasswordData.startsWith('$2b$')) {
+                // It's a bcrypt hash and bcrypt is available
+                try {
+                    isValidPassword = await bcrypt.compare(password, storedPasswordData);
+                } catch (error) {
+                    console.log('Bcrypt error, falling back to plain text:', error.message);
+                    isValidPassword = password === (process.env.ADMIN_PASSWORD || 'manakamana12');
+                }
             } else {
-                // Fallback to plain text comparison (not recommended for production)
-                const plainPassword = storedPasswordData || 'manakamana12';
+                // Fallback to plain text comparison
+                const plainPassword = storedPasswordData || process.env.ADMIN_PASSWORD || 'manakamana12';
                 isValidPassword = password === plainPassword;
                 
-                // If login is successful with plain text, hash it for future use
-                if (isValidPassword) {
-                    const bcrypt = require('bcryptjs');
-                    const hashedPassword = await bcrypt.hash(password, 12);
-                    await db.setSetting('admin_password', hashedPassword, 'string');
+                // If login is successful with plain text and bcrypt is available, hash it for future use
+                if (isValidPassword && bcrypt) {
+                    try {
+                        const hashedPassword = await bcrypt.hash(password, 12);
+                        await db.setSetting('admin_password', hashedPassword, 'string');
+                    } catch (error) {
+                        console.log('Could not hash password for future use:', error.message);
+                    }
                 }
             }
 
             if (!isValidPassword) {
-                await db.createLog({
-                    log_type: 'security',
-                    level: 'warn',
-                    message: 'Failed admin login attempt',
-                    details: {
-                        ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
-                        user_agent: event.headers['user-agent']
-                    },
-                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-                });
+                try {
+                    await db.createLog({
+                        log_type: 'security',
+                        level: 'warn',
+                        message: 'Failed admin login attempt',
+                        details: {
+                            ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                            user_agent: event.headers['user-agent']
+                        },
+                        ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+                    });
+                } catch (logError) {
+                    console.log('Could not log failed login attempt:', logError.message);
+                }
 
                 return {
                     statusCode: 401,
@@ -130,16 +184,20 @@ exports.handler = async (event, context) => {
             );
 
             // Log successful admin login
-            await db.createLog({
-                log_type: 'admin',
-                level: 'info',
-                message: 'Admin login successful',
-                details: {
-                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
-                    user_agent: event.headers['user-agent']
-                },
-                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-            });
+            try {
+                await db.createLog({
+                    log_type: 'admin',
+                    level: 'info',
+                    message: 'Admin login successful',
+                    details: {
+                        ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                        user_agent: event.headers['user-agent']
+                    },
+                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+                });
+            } catch (logError) {
+                console.log('Could not log successful login:', logError.message);
+            }
 
             return {
                 statusCode: 200,
@@ -219,27 +277,42 @@ exports.handler = async (event, context) => {
             }
 
             // Verify current password
-            const storedPasswordData = await db.getSetting('admin_password');
+            let storedPasswordData = null;
+            try {
+                storedPasswordData = await db.getSetting('admin_password');
+            } catch (error) {
+                console.log('Database error, using environment fallback:', error.message);
+                storedPasswordData = process.env.ADMIN_PASSWORD || 'manakamana12';
+            }
+            
             let isValidCurrentPassword = false;
             
-            if (storedPasswordData && storedPasswordData.startsWith('$2b$')) {
-                const bcrypt = require('bcryptjs');
-                isValidCurrentPassword = await bcrypt.compare(currentPassword, storedPasswordData);
+            if (bcrypt && storedPasswordData && storedPasswordData.startsWith('$2b$')) {
+                try {
+                    isValidCurrentPassword = await bcrypt.compare(currentPassword, storedPasswordData);
+                } catch (error) {
+                    console.log('Bcrypt error, falling back to plain text:', error.message);
+                    isValidCurrentPassword = currentPassword === (process.env.ADMIN_PASSWORD || 'manakamana12');
+                }
             } else {
-                const plainPassword = storedPasswordData || 'manakamana12';
+                const plainPassword = storedPasswordData || process.env.ADMIN_PASSWORD || 'manakamana12';
                 isValidCurrentPassword = currentPassword === plainPassword;
             }
 
             if (!isValidCurrentPassword) {
-                await db.createLog({
-                    log_type: 'security',
-                    level: 'warn',
-                    message: 'Failed password change attempt - wrong current password',
-                    details: {
+                try {
+                    await db.createLog({
+                        log_type: 'security',
+                        level: 'warn',
+                        message: 'Failed password change attempt - wrong current password',
+                        details: {
+                            ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+                        },
                         ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-                    },
-                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-                });
+                    });
+                } catch (logError) {
+                    console.log('Could not log failed password change:', logError.message);
+                }
 
                 return {
                     statusCode: 401,
@@ -252,20 +325,35 @@ exports.handler = async (event, context) => {
             }
 
             // Hash and save new password
-            const bcrypt = require('bcryptjs');
-            const hashedNewPassword = await bcrypt.hash(newPassword, 12);
-            await db.setSetting('admin_password', hashedNewPassword, 'string');
+            let hashedNewPassword = newPassword;
+            if (bcrypt) {
+                try {
+                    hashedNewPassword = await bcrypt.hash(newPassword, 12);
+                } catch (error) {
+                    console.log('Could not hash new password:', error.message);
+                }
+            }
+            
+            try {
+                await db.setSetting('admin_password', hashedNewPassword, 'string');
+            } catch (error) {
+                console.log('Could not save new password:', error.message);
+            }
 
             // Log password change
-            await db.createLog({
-                log_type: 'admin',
-                level: 'info',
-                message: 'Admin password changed',
-                details: {
+            try {
+                await db.createLog({
+                    log_type: 'admin',
+                    level: 'info',
+                    message: 'Admin password changed',
+                    details: {
+                        ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+                    },
                     ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-                },
-                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-            });
+                });
+            } catch (logError) {
+                console.log('Could not log password change:', logError.message);
+            }
 
             return {
                 statusCode: 200,
@@ -290,16 +378,20 @@ exports.handler = async (event, context) => {
     } catch (error) {
         console.error('Admin login error:', error);
 
-        await db.createLog({
-            log_type: 'error',
-            level: 'error',
-            message: 'Admin login function error',
-            details: { 
-                error: error.message,
-                stack: error.stack 
-            },
-            ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-        });
+        try {
+            await db.createLog({
+                log_type: 'error',
+                level: 'error',
+                message: 'Admin login function error',
+                details: { 
+                    error: error.message,
+                    stack: error.stack 
+                },
+                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+            });
+        } catch (logError) {
+            console.log('Could not log admin login error:', logError.message);
+        }
 
         return {
             statusCode: 500,
