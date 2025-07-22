@@ -13,7 +13,7 @@ const CONFIG = {
 // CORS headers
 const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Content-Type': 'application/json'
 };
@@ -36,13 +36,31 @@ exports.handler = async (event, context) => {
     try {
         const { action, token, ...params } = JSON.parse(event.body);
 
-        // Verify admin token
-        const decoded = jwt.verify(token, CONFIG.JWT_SECRET);
-        if (!decoded || decoded.role !== 'admin') {
+        // Check if token is provided
+        if (!token) {
             return {
                 statusCode: 401,
                 headers,
-                body: JSON.stringify({ success: false, message: 'Unauthorized' })
+                body: JSON.stringify({ success: false, message: 'jwt must be provided' })
+            };
+        }
+
+        // Verify admin token
+        try {
+            const decoded = jwt.verify(token, CONFIG.JWT_SECRET);
+            if (!decoded || decoded.role !== 'admin') {
+                return {
+                    statusCode: 401,
+                    headers,
+                    body: JSON.stringify({ success: false, message: 'Unauthorized' })
+                };
+            }
+        } catch (jwtError) {
+            console.error('JWT verification error:', jwtError);
+            return {
+                statusCode: 401,
+                headers,
+                body: JSON.stringify({ success: false, message: 'Invalid or expired token' })
             };
         }
 

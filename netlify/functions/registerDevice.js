@@ -128,21 +128,21 @@ exports.handler = async (event, context) => {
             };
         }
         
-        if (fingerprint.length > 1000) {
+        if (fingerprint.length > 1500) {
             console.error('Fingerprint too long:', fingerprint.length, 'bytes');
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Device fingerprint too long (max 1000 characters). Please contact support.' 
+                    message: 'Device fingerprint too long (max 1500 characters). Please contact support.' 
                 })
             };
         }
         
         // Check combined size of indexed fields (hwid + fingerprint)
         const combinedIndexSize = hwid.length + fingerprint.length;
-        if (combinedIndexSize > 2000) { // Conservative limit well below 2704 bytes
+        if (combinedIndexSize > 2200) { // Conservative limit well below 2704 bytes
             console.error('Combined HWID+fingerprint too long:', combinedIndexSize, 'bytes');
             return {
                 statusCode: 400,
