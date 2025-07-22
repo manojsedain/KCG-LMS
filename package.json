@@ -4,11 +4,13 @@
   "description": "AI-powered assistant for Learning Management Systems with secure device validation",
   "main": "index.js",
   "scripts": {
-    "dev": "netlify dev",
-    "build": "npm install",
-    "start": "netlify dev",
-    "deploy": "netlify deploy",
-    "deploy:prod": "netlify deploy --prod",
+    "dev": "npm run build:css && netlify dev",
+    "build": "npm install && npm run build:css",
+    "build:css": "npx tailwindcss -i ./src/input.css -o ./dist/styles.css --watch",
+    "build:css:prod": "npx tailwindcss -i ./src/input.css -o ./dist/styles.css --minify",
+    "start": "npm run build:css && netlify dev",
+    "deploy": "npm run build:css:prod && netlify deploy",
+    "deploy:prod": "npm run build:css:prod && netlify deploy --prod",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint netlify/functions utils",
     "format": "prettier --write ."
@@ -36,7 +38,7 @@
     "netlify-cli": "^17.10.1",
     "postcss": "^8.5.6",
     "prettier": "^3.1.1",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^3.4.0"
   },
   "engines": {
     "node": ">=18.0.0",
