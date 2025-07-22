@@ -124,15 +124,19 @@ exports.handler = async (event, context) => {
             
             // For backward compatibility, check if it's a plain text password
             let isValidPassword = false;
+            // Check if stored password is a bcrypt hash (supports $2a$, $2b$, $2x$, $2y$ formats)
+            const isBcryptHash = storedPasswordData && /^\$2[abxy]\$/.test(storedPasswordData);
+            
             console.log('Password comparison debug:', {
                 inputPasswordLength: password ? password.length : 0,
                 storedPasswordExists: !!storedPasswordData,
-                storedPasswordType: storedPasswordData && storedPasswordData.startsWith('$2b$') ? 'bcrypt' : 'plaintext',
+                storedPasswordType: isBcryptHash ? 'bcrypt' : 'plaintext',
+                storedPasswordPrefix: storedPasswordData ? storedPasswordData.substring(0, 10) : 'none',
                 bcryptAvailable: !!bcrypt,
                 envPassword: process.env.ADMIN_PASSWORD ? 'set' : 'not set'
             });
             
-            if (bcrypt && storedPasswordData && storedPasswordData.startsWith('$2b$')) {
+            if (bcrypt && storedPasswordData && /^\$2[abxy]\$/.test(storedPasswordData)) {
                 // It's a bcrypt hash and bcrypt is available
                 console.log('Using bcrypt comparison');
                 try {
