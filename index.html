@@ -635,7 +635,7 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'lms-device-validator.user.js';
+                    a.download = `lms-device-validator-${username.trim()}.user.js`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
