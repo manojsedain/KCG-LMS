@@ -101,9 +101,47 @@ exports.handler = async (event, context) => {
             console.log('Using plain text password (bcrypt not available)');
         }
 
-        // Update the admin password in database
-        await db.setSetting('admin_password', hashedPassword, 'string');
-        console.log('Admin password updated successfully');
+        // Update the admin password in database directly
+        try {
+            // Try to load Supabase client directly
+            const { createClient } = require('@supabase/supabase-js');
+            const supabaseUrl = process.env.SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                throw new Error('Supabase credentials not available');
+            }
+            
+            const supabase = createClient(supabaseUrl, supabaseKey);
+            
+            // Direct update to admin_settings table
+            const { error } = await supabase
+                .from('admin_settings')
+                .upsert({
+                    setting_key: 'admin_password',
+                    setting_value: hashedPassword,
+                    setting_type: 'string',
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'setting_key'
+                });
+            
+            if (error) {
+                console.error('Direct update error:', error);
+                throw error;
+            }
+            
+            console.log('Admin password updated successfully via direct update');
+        } catch (directError) {
+            console.error('Direct update failed, trying setSetting:', directError);
+            // Fallback to setSetting if direct update fails
+            if (db && db.setSetting) {
+                await db.setSetting('admin_password', hashedPassword, 'string');
+                console.log('Admin password updated successfully via setSetting');
+            } else {
+                throw new Error('Unable to update password: ' + directError.message);
+            }
+        }
 
         // Log the password reset
         try {
