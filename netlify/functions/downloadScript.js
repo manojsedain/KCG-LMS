@@ -1,4 +1,4 @@
-// netlify/functions/downloadScript.js - Public endpoint for users to download the active userscript
+// netlify/functions/downloadScript.js - Public endpoint for users to download the LMS AI Assistant userscript
 
 // CORS headers
 const headers = {
@@ -24,31 +24,8 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Get the active script from manageScripts function
-        const manageScriptsResponse = await fetch('/.netlify/functions/manageScripts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'getActiveScript'
-            })
-        });
-
-        if (manageScriptsResponse.ok) {
-            const scriptContent = await manageScriptsResponse.text();
-            
-            // Return the script with proper headers for download
-            return {
-                statusCode: 200,
-                headers: {
-                    ...headers,
-                    'Content-Disposition': 'attachment; filename="lms-ai-assistant.user.js"',
-                    'Content-Type': 'application/javascript'
-                },
-                body: scriptContent
-            };
-        } else {
-            // Fallback: return default script if no active script found
-            const defaultScript = `// ==UserScript==
+        // Return the LMS AI Assistant userscript directly
+        const lmsAiScript = `// ==UserScript==
 // @name         LMS AI Assistant
 // @namespace    https://wrongnumber.netlify.app/
 // @version      1.0.0
@@ -219,7 +196,6 @@ exports.handler = async (event, context) => {
                 
             case 'highlight':
                 chat.innerHTML += \`<div style="margin-bottom: 10px; color: #667eea;"><strong>AI:</strong> ✨ Highlighting important content on the page...</div>\`;
-                // Add highlighting functionality here
                 setTimeout(() => {
                     chat.innerHTML += \`<div style="margin-bottom: 10px; color: #667eea;"><strong>AI:</strong> I've identified key sections on this page. Look for important headings, deadlines, and assignment details!</div>\`;
                     chat.scrollTop = chat.scrollHeight;
@@ -257,16 +233,15 @@ exports.handler = async (event, context) => {
     console.log('✅ LMS AI Assistant fully initialized!');
 })();`;
 
-            return {
-                statusCode: 200,
-                headers: {
-                    ...headers,
-                    'Content-Disposition': 'attachment; filename="lms-ai-assistant.user.js"',
-                    'Content-Type': 'application/javascript'
-                },
-                body: defaultScript
-            };
-        }
+        return {
+            statusCode: 200,
+            headers: {
+                ...headers,
+                'Content-Disposition': 'attachment; filename="lms-ai-assistant.user.js"',
+                'Content-Type': 'application/javascript'
+            },
+            body: lmsAiScript
+        };
 
     } catch (error) {
         console.error('Download script error:', error);
