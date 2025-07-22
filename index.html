@@ -51,21 +51,175 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 9999;
-            min-width: 300px;
-            padding: 16px;
+            padding: 12px 24px;
             border-radius: 8px;
             color: white;
             font-weight: 500;
+            z-index: 1000;
             transform: translateX(100%);
-            transition: transform 0.3s ease-in-out;
+            transition: transform 0.3s ease;
         }
         
-        .toast.show { transform: translateX(0); }
-        .toast.success { background: #10b981; }
-        .toast.error { background: #ef4444; }
-        .toast.warning { background: #f59e0b; }
-        .toast.info { background: #06b6d4; }
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast-success {
+            background: #10b981;
+        }
+        
+        .toast-error {
+            background: #ef4444;
+        }
+        
+        .toast-info {
+            background: #3b82f6;
+        }
+        
+        /* Installation Instructions Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .modal-body {
+            padding: 25px;
+            line-height: 1.6;
+        }
+        
+        .modal-body h4 {
+            color: #374151;
+            margin: 20px 0 10px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .modal-body ul, .modal-body ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .modal-body li {
+            margin: 8px 0;
+        }
+        
+        .modal-body a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .modal-body a:hover {
+            text-decoration: underline;
+        }
+        
+        .modal-body code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .installation-note {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #92400e;
+        }
+        
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
         
         .admin-input {
             position: absolute;
@@ -323,26 +477,70 @@
         function showToast(message, type = 'info', duration = 5000) {
             const toastContainer = document.getElementById('toastContainer');
             const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <span>${message}</span>
-                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                        <i class="fas fa-times"></i>
-                    </button>
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+        
+        // Show installation instructions modal
+        function showInstallationInstructions() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>🚀 Installation Instructions</h3>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <h4>📥 Step 1: Install Browser Extension</h4>
+                        <p>First, install a userscript manager:</p>
+                        <ul>
+                            <li><strong>Chrome/Edge:</strong> <a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank">Tampermonkey</a></li>
+                            <li><strong>Firefox:</strong> <a href="https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/" target="_blank">Tampermonkey</a> or <a href="https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/" target="_blank">Greasemonkey</a></li>
+                            <li><strong>Safari:</strong> <a href="https://apps.apple.com/us/app/tampermonkey/id1482490089" target="_blank">Tampermonkey</a></li>
+                        </ul>
+                        
+                        <h4>📋 Step 2: Install the Script</h4>
+                        <ol>
+                            <li>Open the downloaded <code>lms-ai-assistant.user.js</code> file</li>
+                            <li>Your userscript manager should automatically detect it</li>
+                            <li>Click "Install" when prompted</li>
+                            <li>Navigate to your LMS website</li>
+                            <li>Look for the 🤖 AI Assistant button in the top-right corner</li>
+                        </ol>
+                        
+                        <h4>✨ Features Available:</h4>
+                        <ul>
+                            <li>📄 Page summarization</li>
+                            <li>✨ Content highlighting</li>
+                            <li>📝 Automatic note-taking</li>
+                            <li>📅 Calendar integration</li>
+                            <li>🌐 Content translation</li>
+                            <li>💬 AI chat assistant</li>
+                        </ul>
+                        
+                        <div class="installation-note">
+                            <strong>Note:</strong> The AI Assistant will only work on King's College LMS pages (king-lms.kcg.edu).
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-primary" onclick="this.closest('.modal-overlay').remove()">Got it!</button>
+                    </div>
                 </div>
             `;
             
-            toastContainer.appendChild(toast);
-            
-            // Show toast
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            // Auto remove
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, duration);
+            document.body.appendChild(modal);
         }
 
         // Admin panel access via typing "admin"
@@ -389,53 +587,51 @@
                 return;
             }
             
-            isLoading = true;
-            downloadText.classList.add('hidden');
-            downloadLoader.classList.remove('hidden');
-            
             try {
-                // Call the loader endpoint
-                const response = await fetch('/.netlify/functions/loader', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username: username,
-                        sitePassword: password
-                    })
+                showToast('Preparing your LMS AI Assistant script...', 'info');
+                
+                // Use the new downloadScript endpoint
+                const response = await fetch('/.netlify/functions/downloadScript', {
+                    method: 'GET'
                 });
                 
                 if (response.ok) {
-                    // The loader endpoint returns the script directly, not JSON
                     const scriptContent = await response.text();
                     
-                    // Create and download the script file
-                    const blob = new Blob([scriptContent], { type: 'text/javascript' });
-                    const url = window.URL.createObjectURL(blob);
+                    // Create and trigger download
+                    const blob = new Blob([scriptContent], { type: 'application/javascript' });
+                    const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `loader-${username}.user.js`;
+                    a.download = 'lms-ai-assistant.user.js';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
+                    URL.revokeObjectURL(url);
                     
-                    showToast('Script downloaded successfully! Install it in ScriptCat/Tampermonkey.', 'success');
+                    showToast(' LMS AI Assistant downloaded! Install it in your browser to get started.', 'success');
+                    
+                    // Show installation instructions
+                    setTimeout(() => {
+                        showInstallationInstructions();
+                    }, 2000);
+                    
+                    // Clear the username field
+                    document.getElementById('username').value = '';
                 } else {
-                    // Handle error response
+                    const errorText = await response.text();
+                    let errorMessage = 'Download failed';
                     try {
-                        const errorResult = await response.json();
-                        showToast(errorResult.message || 'Download failed. Please check your credentials.', 'error');
-                    } catch {
-                        showToast('Download failed. Please check your credentials.', 'error');
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.message || errorMessage;
+                    } catch (e) {
+                        // If not JSON, use default message
                     }
+                    showToast(errorMessage, 'error');
                 }
             } catch (error) {
                 console.error('Download error:', error);
-                showToast('Network error. Please try again.', 'error');
-            } finally {
-                isLoading = false;
+                showToast('Download failed. Please check your connection and try again.', 'error');
                 downloadText.classList.remove('hidden');
                 downloadLoader.classList.add('hidden');
             }

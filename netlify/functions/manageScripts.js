@@ -16,7 +16,7 @@ function verifyToken(token, secret) {
 
 // Configuration
 const CONFIG = {
-    JWT_SECRET: process.env.JWT_SECRET || 'your-jwt-secret-key'
+    JWT_SECRET: process.env.JWT_SECRET || 'V+3stApVGE9zLpJFf79RA4SAc/w2vqJygx5wQ2hW/OlGLN/rhEPFHV1tRR+zcO2APsrvMwy+IO6IgN7+jSghTw=='
 };
 
 // CORS headers
