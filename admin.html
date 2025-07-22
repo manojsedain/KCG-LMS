@@ -893,8 +893,8 @@
             // Initialize navigation
             initNavigation();
             
-            // Initialize all admin features
-            initAdminFeatures();
+            // Only initialize admin features if already logged in
+            // Otherwise, they will be initialized after successful login
             
             // Initialize logout button
             const logoutBtn = document.getElementById('logoutBtn');
@@ -912,6 +912,9 @@
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('adminInterface').classList.remove('hidden');
             isLoggedIn = true;
+            
+            // Initialize all admin features after login
+            initAdminFeatures();
             
             // Load dashboard data
             loadDashboardData();
@@ -2012,6 +2015,49 @@
                 document.getElementById('notificationSubject').value = '';
                 document.getElementById('notificationMessage').value = '';
             }, 2000);
+        }
+        
+        function previewNotification() {
+            const recipient = document.getElementById('notificationRecipient').value;
+            const subject = document.getElementById('notificationSubject').value;
+            const message = document.getElementById('notificationMessage').value;
+            
+            if (!subject || !message) {
+                showToast('Please fill in subject and message to preview', 'error');
+                return;
+            }
+            
+            // Create a modal to preview the notification
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-slate-800 rounded-xl p-6 max-w-2xl max-h-[80vh] overflow-auto m-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-semibold">Notification Preview</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="bg-slate-900 rounded-lg p-4 border border-white/10">
+                        <div class="mb-3">
+                            <span class="text-sm text-gray-400">To:</span>
+                            <span class="ml-2 text-white">${recipient === 'custom' ? document.getElementById('customEmail').value || 'Custom Email' : recipient.replace('_', ' ').toUpperCase()}</span>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-sm text-gray-400">Subject:</span>
+                            <span class="ml-2 text-white font-medium">${subject}</span>
+                        </div>
+                        <div class="border-t border-white/10 pt-3">
+                            <div class="text-sm text-gray-400 mb-2">Message:</div>
+                            <div class="text-white whitespace-pre-wrap">${message}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-xs text-gray-400">
+                        <p>This is a preview of how the notification will appear to recipients.</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
         }
         
         // ===== UTILITY FUNCTIONS =====
