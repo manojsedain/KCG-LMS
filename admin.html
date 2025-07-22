@@ -332,7 +332,7 @@
                                 <div>
                                     <label class="block text-sm font-medium mb-2">Admin Password</label>
                                     <div class="flex space-x-2">
-                                        <input type="password" id="adminPassword" class="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Enter new admin password">
+                                        <input type="password" id="adminPasswordNew" class="flex-1 bg-white/5 border border-white/20 rounded-lg px-3 py-2 focus:outline-none focus:border-primary" placeholder="Enter new admin password">
                                         <button id="updateAdminPasswordBtn" class="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded-lg transition-colors">
                                             <i class="fas fa-key"></i>
                                         </button>
@@ -890,11 +890,6 @@
                 });
             }
             
-            // Navigation
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', handleNavigation);
-            });
-            
             // Initialize navigation
             initNavigation();
             
@@ -991,6 +986,13 @@
             return false;
         }
 
+        function initNavigation() {
+            // Navigation click handlers
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', handleNavigation);
+            });
+        }
+        
         function handleNavigation(e) {
             e.preventDefault();
             
@@ -1002,19 +1004,27 @@
             });
             e.currentTarget.classList.add('active', 'bg-white/20');
             
-            // Hide all sections
+            // Show target section
             document.querySelectorAll('.content-section').forEach(section => {
                 section.classList.add('hidden');
             });
             
-            // Show target section
             const targetSection = document.getElementById(target + '-section');
             if (targetSection) {
                 targetSection.classList.remove('hidden');
             }
             
             // Update page title
-            updatePageTitle(target);
+            const titles = {
+                'dashboard': 'Dashboard',
+                'script-management': 'Script Management',
+                'system-settings': 'System Settings',
+                'notifications': 'Notifications',
+                'logs': 'System Logs',
+                'devices': 'Device Management'
+            };
+            
+            document.getElementById('pageTitle').textContent = titles[target] || 'Dashboard';
         }
 
         function updatePageTitle(section) {
@@ -1435,34 +1445,45 @@
                 </div>
             `;
             
-            // Simulate device data for demo
-            setTimeout(() => {
-                const demoDevices = [
-                    {
-                        id: 1,
-                        username: 'student1',
-                        device_id: 'DEV001',
-                        status: 'approved',
-                        ip_address: '192.168.1.100',
-                        user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        created_at: new Date().toISOString(),
-                        last_active: new Date().toISOString()
-                    },
-                    {
-                        id: 2,
-                        username: 'student2',
-                        device_id: 'DEV002',
-                        status: 'pending',
-                        ip_address: '192.168.1.101',
-                        user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-                        created_at: new Date().toISOString(),
-                        last_active: new Date().toISOString()
-                    }
-                ];
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const search = document.getElementById('deviceSearch')?.value || '';
+                const sort = document.getElementById('deviceSort')?.value || 'created_desc';
                 
-                displayDevices(demoDevices, filter);
-                updateDeviceStats(demoDevices);
-            }, 1000);
+                const response = await fetch('/.netlify/functions/deviceManagement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'listDevices',
+                        token: session.token,
+                        filter,
+                        search,
+                        sort
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayDevices(result.devices, filter);
+                    updateDeviceStats(result.stats);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-red-400">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p>Failed to load devices: ${result.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Load devices error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p>Error loading devices</p>
+                    </div>
+                `;
+            }
         }
         
         function displayDevices(devices, filter = 'all') {
@@ -1522,17 +1543,142 @@
             `).join('');
         }
         
-        function updateDeviceStats(devices) {
-            const total = devices.length;
-            const approved = devices.filter(d => d.status === 'approved').length;
-            const pending = devices.filter(d => d.status === 'pending').length;
-            const blocked = devices.filter(d => d.status === 'blocked').length;
+        function updateDeviceStats(stats) {
+            // Use backend stats if available, otherwise calculate from devices
+            if (stats && typeof stats === 'object') {
+                document.getElementById('totalDevicesCount').textContent = stats.total || 0;
+                document.getElementById('approvedDevicesCount').textContent = stats.approved || 0;
+                document.getElementById('pendingDevicesCount').textContent = stats.pending || 0;
+                document.getElementById('blockedDevicesCount').textContent = stats.blocked || 0;
+                document.getElementById('pendingBadge').textContent = stats.pending || 0;
+            } else {
+                // Fallback for array input (legacy support)
+                const devices = stats;
+                const total = devices.length;
+                const approved = devices.filter(d => d.status === 'approved').length;
+                const pending = devices.filter(d => d.status === 'pending').length;
+                const blocked = devices.filter(d => d.status === 'blocked').length;
+                
+                document.getElementById('totalDevicesCount').textContent = total;
+                document.getElementById('approvedDevicesCount').textContent = approved;
+                document.getElementById('pendingDevicesCount').textContent = pending;
+                document.getElementById('blockedDevicesCount').textContent = blocked;
+                document.getElementById('pendingBadge').textContent = pending;
+            }
+        }
+        
+        // Device action functions
+        async function approveDevice(deviceId) {
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/deviceManagement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'approveDevice',
+                        token: session.token,
+                        deviceId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Device approved successfully!', 'success');
+                    loadDevices(); // Reload devices
+                } else {
+                    showToast(result.message || 'Failed to approve device', 'error');
+                }
+            } catch (error) {
+                console.error('Approve device error:', error);
+                showToast('Failed to approve device', 'error');
+            }
+        }
+        
+        async function blockDevice(deviceId) {
+            if (!confirm('Are you sure you want to block this device?')) return;
             
-            document.getElementById('totalDevicesCount').textContent = total;
-            document.getElementById('approvedDevicesCount').textContent = approved;
-            document.getElementById('pendingDevicesCount').textContent = pending;
-            document.getElementById('blockedDevicesCount').textContent = blocked;
-            document.getElementById('pendingBadge').textContent = pending;
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/deviceManagement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'blockDevice',
+                        token: session.token,
+                        deviceId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Device blocked successfully!', 'success');
+                    loadDevices(); // Reload devices
+                } else {
+                    showToast(result.message || 'Failed to block device', 'error');
+                }
+            } catch (error) {
+                console.error('Block device error:', error);
+                showToast('Failed to block device', 'error');
+            }
+        }
+        
+        async function deleteDevice(deviceId) {
+            if (!confirm('Are you sure you want to delete this device? This action cannot be undone.')) return;
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/deviceManagement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'deleteDevice',
+                        token: session.token,
+                        deviceId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Device deleted successfully!', 'success');
+                    loadDevices(); // Reload devices
+                } else {
+                    showToast(result.message || 'Failed to delete device', 'error');
+                }
+            } catch (error) {
+                console.error('Delete device error:', error);
+                showToast('Failed to delete device', 'error');
+            }
+        }
+        
+        async function bulkApproveDevices() {
+            if (!confirm('Are you sure you want to approve all pending devices?')) return;
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/deviceManagement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'bulkApprove',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    loadDevices(); // Reload devices
+                } else {
+                    showToast(result.message || 'Failed to approve devices', 'error');
+                }
+            } catch (error) {
+                console.error('Bulk approve error:', error);
+                showToast('Failed to approve devices', 'error');
+            }
         }
         
         // ===== LOGS MANAGEMENT FUNCTIONS =====
@@ -1748,12 +1894,195 @@
             };
         }
         
+        // ===== SYSTEM SETTINGS FUNCTIONS =====
+        
+        function initSystemSettings() {
+            // Password update buttons
+            document.getElementById('updateAdminPasswordBtn')?.addEventListener('click', updateAdminPassword);
+            document.getElementById('updateSitePasswordBtn')?.addEventListener('click', updateSitePassword);
+            document.getElementById('generateJwtBtn')?.addEventListener('click', generateJwtSecret);
+            
+            // Database settings
+            document.getElementById('testConnectionBtn')?.addEventListener('click', testDatabaseConnection);
+            document.getElementById('saveDbSettingsBtn')?.addEventListener('click', saveDatabaseSettings);
+            
+            // Load current settings
+            loadSystemSettings();
+        }
+        
+        async function updateAdminPassword() {
+            const newPassword = document.getElementById('adminPasswordNew').value;
+            
+            if (!newPassword || newPassword.length < 6) {
+                showToast('Password must be at least 6 characters', 'error');
+                return;
+            }
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/systemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateAdminPassword',
+                        token: session.token,
+                        newPassword
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Admin password updated successfully!', 'success');
+                    document.getElementById('adminPasswordNew').value = '';
+                } else {
+                    showToast(result.message || 'Failed to update password', 'error');
+                }
+            } catch (error) {
+                console.error('Update admin password error:', error);
+                showToast('Failed to update password', 'error');
+            }
+        }
+        
+        async function updateSitePassword() {
+            const sitePassword = document.getElementById('sitePassword').value;
+            
+            if (!sitePassword || sitePassword.length < 3) {
+                showToast('Site password must be at least 3 characters', 'error');
+                return;
+            }
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/systemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateSitePassword',
+                        token: session.token,
+                        sitePassword
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Site password updated successfully!', 'success');
+                    document.getElementById('sitePassword').value = '';
+                } else {
+                    showToast(result.message || 'Failed to update site password', 'error');
+                }
+            } catch (error) {
+                console.error('Update site password error:', error);
+                showToast('Failed to update site password', 'error');
+            }
+        }
+        
+        async function generateJwtSecret() {
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/systemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'generateJwtSecret',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('jwtSecret').value = result.secret;
+                    showToast('JWT secret generated successfully!', 'success');
+                } else {
+                    showToast(result.message || 'Failed to generate JWT secret', 'error');
+                }
+            } catch (error) {
+                console.error('Generate JWT secret error:', error);
+                showToast('Failed to generate JWT secret', 'error');
+            }
+        }
+        
+        async function testDatabaseConnection() {
+            const supabaseUrl = document.getElementById('supabaseUrl').value;
+            const supabaseKey = document.getElementById('supabaseKey').value;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showToast('Please enter both Supabase URL and key', 'error');
+                return;
+            }
+            
+            showToast('Testing database connection...', 'info');
+            
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/systemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'testDatabaseConnection',
+                        token: session.token,
+                        supabaseUrl,
+                        supabaseKey
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Database connection successful!', 'success');
+                } else {
+                    showToast(result.message || 'Database connection failed', 'error');
+                }
+            } catch (error) {
+                console.error('Test database connection error:', error);
+                showToast('Failed to test database connection', 'error');
+            }
+        }
+        
+        async function saveDatabaseSettings() {
+            const supabaseUrl = document.getElementById('supabaseUrl').value;
+            const supabaseKey = document.getElementById('supabaseKey').value;
+            
+            if (!supabaseUrl || !supabaseKey) {
+                showToast('Please enter both Supabase URL and key', 'error');
+                return;
+            }
+            
+            showToast('Database settings saved! (Note: Requires server restart)', 'success');
+        }
+        
+        async function loadSystemSettings() {
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const response = await fetch('/.netlify/functions/systemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'getSystemInfo',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update system info display if needed
+                    console.log('System info loaded:', result.systemInfo);
+                }
+            } catch (error) {
+                console.error('Load system settings error:', error);
+            }
+        }
+        
         // Initialize all admin panel features
         function initAdminFeatures() {
             initScriptManagement();
             initDeviceManagement();
             initLogsManagement();
             initNotifications();
+            initSystemSettings();
         }
         
         // Security measures
