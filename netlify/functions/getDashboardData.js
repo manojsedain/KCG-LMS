@@ -1,23 +1,18 @@
-// netlify/functions/getDashboardData.js - Admin dashboard data
-let EncryptionUtils = null;
+// netlify/functions/getDashboardData.js - Admin dashboard data (simplified)
 
-// Try to load EncryptionUtils with fallback
-try {
-    EncryptionUtils = require('../../utils/encryption');
-} catch (error) {
-    console.log('EncryptionUtils not available, using fallback');
-    // Fallback EncryptionUtils
-    EncryptionUtils = {
-        verifyToken: (token, secret) => {
-            try {
-                const [headerEncoded, payloadEncoded, signature] = token.split('.');
-                if (!headerEncoded || !payloadEncoded || !signature) return null;
-                const payload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
-                if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-                return payload;
-            } catch { return null; }
-        }
-    };
+// Simple token verification function
+function verifyToken(token, secret) {
+    try {
+        if (!token) return null;
+        const [headerEncoded, payloadEncoded, signature] = token.split('.');
+        if (!headerEncoded || !payloadEncoded || !signature) return null;
+        const payload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
+        if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+        return payload;
+    } catch (error) {
+        console.log('Token verification error:', error.message);
+        return null;
+    }
 }
 
 // Try to load Supabase, but provide fallback if not configured
@@ -109,7 +104,7 @@ async function verifyAdminSession(token) {
         return { valid: false, error: 'No token provided' };
     }
 
-    const payload = EncryptionUtils.verifyToken(token, CONFIG.JWT_SECRET);
+    const payload = verifyToken(token, CONFIG.JWT_SECRET);
     
     if (!payload || payload.type !== 'admin_session') {
         return { valid: false, error: 'Invalid or expired session' };
