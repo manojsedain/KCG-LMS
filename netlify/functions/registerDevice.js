@@ -264,7 +264,7 @@ exports.handler = async (event, context) => {
         const autoApprove = settingError ? false : autoApproveData.setting_value === 'true';
         const deviceStatus = autoApprove ? 'active' : 'pending';
 
-        // Create new device
+        // Create new device with duplicate handling
         const { data: newDevice, error: deviceError } = await supabase
             .from('devices')
             .insert({
@@ -285,12 +285,76 @@ exports.handler = async (event, context) => {
 
         if (deviceError) {
             console.error('Error creating device:', deviceError);
+            
+            // Handle duplicate device (unique constraint violation)
+            if (deviceError.code === '23505' && deviceError.message.includes('devices_hwid_fingerprint_key')) {
+                console.log('Duplicate device detected, fetching existing device...');
+                
+                // Fetch the existing device that caused the conflict
+                const { data: existingDevice, error: fetchError } = await supabase
+                    .from('devices')
+                    .select('*')
+                    .eq('hwid', hwid)
+                    .eq('fingerprint', fingerprint)
+                    .single();
+                
+                if (fetchError) {
+                    console.error('Error fetching existing device after duplicate:', fetchError);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({ 
+                            success: false, 
+                            message: 'Database error handling duplicate device' 
+                        })
+                    };
+                }
+                
+                // Update the existing device's last_used timestamp
+                await supabase
+                    .from('devices')
+                    .update({ 
+                        last_used: new Date().toISOString(),
+                        usage_count: existingDevice.usage_count + 1
+                    })
+                    .eq('id', existingDevice.id);
+                
+                // Log device access attempt
+                await supabase.from('logs').insert({
+                    log_type: 'device',
+                    level: 'info',
+                    message: 'Duplicate device registration attempt - using existing device',
+                    details: { 
+                        username,
+                        deviceName,
+                        status: existingDevice.status,
+                        device_id: existingDevice.id
+                    },
+                    user_id: existingDevice.user_id,
+                    device_id: existingDevice.id,
+                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                    user_agent: event.headers['user-agent']
+                });
+                
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({ 
+                        success: true, 
+                        message: 'Device already registered',
+                        status: existingDevice.status,
+                        deviceId: existingDevice.id
+                    })
+                };
+            }
+            
+            // Handle other database errors
             return {
                 statusCode: 500,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Failed to register device' 
+                    message: 'Failed to register device: ' + deviceError.message
                 })
             };
         }
