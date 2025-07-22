@@ -1,21 +1,11 @@
 // netlify/functions/deviceManagement.js - Device management for admin panel
-
-// Simple token verification
-function verifyToken(token, secret) {
-    try {
-        if (!token) return null;
-        const [headerEncoded, payloadEncoded, signature] = token.split('.');
-        if (!headerEncoded || !payloadEncoded || !signature) return null;
-        const payload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
-        if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-        return payload;
-    } catch (error) {
-        return null;
-    }
-}
+const { createClient } = require('@supabase/supabase-js');
+const jwt = require('jsonwebtoken');
 
 // Configuration
 const CONFIG = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     JWT_SECRET: process.env.JWT_SECRET || 'V+3stApVGE9zLpJFf79RA4SAc/w2vqJygx5wQ2hW/OlGLN/rhEPFHV1tRR+zcO2APsrvMwy+IO6IgN7+jSghTw=='
 };
 
@@ -27,56 +17,21 @@ const headers = {
     'Content-Type': 'application/json'
 };
 
-// In-memory storage for demo devices (replace with Supabase later)
-let devices = [
-    {
-        id: 1,
-        username: 'student1',
-        device_id: 'DEV001',
-        status: 'approved',
-        ip_address: '192.168.1.100',
-        user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        created_at: new Date().toISOString(),
-        last_active: new Date().toISOString(),
-        location: 'Computer Lab A'
-    },
-    {
-        id: 2,
-        username: 'student2',
-        device_id: 'DEV002',
-        status: 'pending',
-        ip_address: '192.168.1.101',
-        user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        last_active: new Date(Date.now() - 1800000).toISOString(),
-        location: 'Library'
-    },
-    {
-        id: 3,
-        username: 'student3',
-        device_id: 'DEV003',
-        status: 'blocked',
-        ip_address: '192.168.1.102',
-        user_agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-        created_at: new Date(Date.now() - 7200000).toISOString(),
-        last_active: new Date(Date.now() - 3600000).toISOString(),
-        location: 'Dormitory'
-    }
-];
-
 // Verify admin session
 async function verifyAdminSession(token) {
     if (!token) {
         return { valid: false, error: 'No token provided' };
     }
 
-    const payload = verifyToken(token, CONFIG.JWT_SECRET);
-    
-    if (!payload || payload.type !== 'admin_session') {
+    try {
+        const decoded = jwt.verify(token, CONFIG.JWT_SECRET);
+        if (!decoded || decoded.role !== 'admin') {
+            return { valid: false, error: 'Invalid or expired session' };
+        }
+        return { valid: true, payload: decoded };
+    } catch (error) {
         return { valid: false, error: 'Invalid or expired session' };
     }
-
-    return { valid: true, payload };
 }
 
 exports.handler = async (event, context) => {
@@ -110,197 +65,370 @@ exports.handler = async (event, context) => {
             };
         }
 
+        // Initialize Supabase client
+        const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
+
         switch (action) {
             case 'listDevices':
                 const { filter, search, sort } = actionData;
                 
-                let filteredDevices = [...devices];
-                
-                // Apply filter
-                if (filter && filter !== 'all') {
-                    filteredDevices = filteredDevices.filter(device => device.status === filter);
-                }
-                
-                // Apply search
-                if (search) {
-                    const searchLower = search.toLowerCase();
-                    filteredDevices = filteredDevices.filter(device => 
-                        device.username.toLowerCase().includes(searchLower) ||
-                        device.device_id.toLowerCase().includes(searchLower) ||
-                        device.ip_address.includes(searchLower)
-                    );
-                }
-                
-                // Apply sort
-                if (sort) {
-                    switch (sort) {
-                        case 'created_desc':
-                            filteredDevices.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                            break;
-                        case 'created_asc':
-                            filteredDevices.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-                            break;
-                        case 'username_asc':
-                            filteredDevices.sort((a, b) => a.username.localeCompare(b.username));
-                            break;
-                        case 'username_desc':
-                            filteredDevices.sort((a, b) => b.username.localeCompare(a.username));
-                            break;
-                        case 'last_active_desc':
-                            filteredDevices.sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
-                            break;
+                try {
+                    let query = supabase
+                        .from('devices')
+                        .select(`
+                            id,
+                            username,
+                            hwid,
+                            fingerprint,
+                            device_name,
+                            browser_info,
+                            os_info,
+                            status,
+                            ip_address,
+                            user_agent,
+                            created_at,
+                            last_used,
+                            usage_count,
+                            approved_at,
+                            approved_by
+                        `);
+                    
+                    // Apply filter
+                    if (filter && filter !== 'all') {
+                        query = query.eq('status', filter);
                     }
+                    
+                    // Apply search
+                    if (search) {
+                        query = query.or(`username.ilike.%${search}%,device_name.ilike.%${search}%,ip_address.ilike.%${search}%`);
+                    }
+                    
+                    // Apply sort
+                    if (sort) {
+                        const [field, direction] = sort.split('-');
+                        const ascending = direction !== 'desc';
+                        query = query.order(field, { ascending });
+                    } else {
+                        query = query.order('created_at', { ascending: false });
+                    }
+                    
+                    const { data: devices, error } = await query;
+                    
+                    if (error) {
+                        console.error('Error fetching devices:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error fetching devices: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    return {
+                        statusCode: 200,
+                        headers,
+                        body: JSON.stringify({
+                            success: true,
+                            devices: devices || [],
+                            stats: {
+                                total: devices ? devices.length : 0,
+                                approved: devices.filter(d => d.status === 'approved').length,
+                                pending: devices.filter(d => d.status === 'pending').length,
+                                blocked: devices.filter(d => d.status === 'blocked').length
+                            }
+                        })
+                    };
+                } catch (error) {
+                    console.error('List devices error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error listing devices: ' + error.message
+                        })
+                    };
                 }
-
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        success: true,
-                        devices: filteredDevices,
-                        stats: {
-                            total: devices.length,
-                            approved: devices.filter(d => d.status === 'approved').length,
-                            pending: devices.filter(d => d.status === 'pending').length,
-                            blocked: devices.filter(d => d.status === 'blocked').length
-                        }
-                    })
-                };
 
             case 'approveDevice':
                 const { deviceId } = actionData;
-                const deviceToApprove = devices.find(d => d.id === parseInt(deviceId));
                 
-                if (!deviceToApprove) {
+                try {
+                    const { data: updatedDevice, error } = await supabase
+                        .from('devices')
+                        .update({
+                            status: 'approved',
+                            approved_at: new Date().toISOString(),
+                            approved_by: 'admin'
+                        })
+                        .eq('id', deviceId)
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        console.error('Error approving device:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error approving device: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!updatedDevice) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
                     return {
-                        statusCode: 404,
+                        statusCode: 200,
                         headers,
-                        body: JSON.stringify({ 
-                            success: false, 
-                            message: 'Device not found' 
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Device approved successfully',
+                            device: updatedDevice
+                        })
+                    };
+                } catch (error) {
+                    console.error('Approve device error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error approving device: ' + error.message
                         })
                     };
                 }
-
-                deviceToApprove.status = 'approved';
-                deviceToApprove.approved_at = new Date().toISOString();
-
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        success: true,
-                        message: 'Device approved successfully',
-                        device: deviceToApprove
-                    })
-                };
 
             case 'blockDevice':
                 const { deviceId: blockId } = actionData;
-                const deviceToBlock = devices.find(d => d.id === parseInt(blockId));
                 
-                if (!deviceToBlock) {
+                try {
+                    const { data: updatedDevice, error } = await supabase
+                        .from('devices')
+                        .update({
+                            status: 'blocked'
+                        })
+                        .eq('id', blockId)
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        console.error('Error blocking device:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error blocking device: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!updatedDevice) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
                     return {
-                        statusCode: 404,
+                        statusCode: 200,
                         headers,
-                        body: JSON.stringify({ 
-                            success: false, 
-                            message: 'Device not found' 
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Device blocked successfully',
+                            device: updatedDevice
+                        })
+                    };
+                } catch (error) {
+                    console.error('Block device error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error blocking device: ' + error.message
                         })
                     };
                 }
-
-                deviceToBlock.status = 'blocked';
-                deviceToBlock.blocked_at = new Date().toISOString();
-
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        success: true,
-                        message: 'Device blocked successfully',
-                        device: deviceToBlock
-                    })
-                };
 
             case 'deleteDevice':
                 const { deviceId: deleteId } = actionData;
-                const deleteIndex = devices.findIndex(d => d.id === parseInt(deleteId));
                 
-                if (deleteIndex === -1) {
+                try {
+                    const { data: deletedDevice, error } = await supabase
+                        .from('devices')
+                        .delete()
+                        .eq('id', deleteId)
+                        .select()
+                        .single();
+                    
+                    if (error) {
+                        console.error('Error deleting device:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error deleting device: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!deletedDevice) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
                     return {
-                        statusCode: 404,
+                        statusCode: 200,
                         headers,
-                        body: JSON.stringify({ 
-                            success: false, 
-                            message: 'Device not found' 
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Device deleted successfully'
+                        })
+                    };
+                } catch (error) {
+                    console.error('Delete device error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error deleting device: ' + error.message
                         })
                     };
                 }
 
-                devices.splice(deleteIndex, 1);
-
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        success: true,
-                        message: 'Device deleted successfully'
-                    })
-                };
-
             case 'bulkApprove':
-                const pendingDevices = devices.filter(d => d.status === 'pending');
-                const approvedCount = pendingDevices.length;
-                
-                pendingDevices.forEach(device => {
-                    device.status = 'approved';
-                    device.approved_at = new Date().toISOString();
-                });
+                try {
+                    const { data: updatedDevices, error } = await supabase
+                        .from('devices')
+                        .update({
+                            status: 'approved',
+                            approved_at: new Date().toISOString(),
+                            approved_by: 'admin'
+                        })
+                        .eq('status', 'pending')
+                        .select();
+                    
+                    if (error) {
+                        console.error('Error bulk approving devices:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error bulk approving devices: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    const approvedCount = updatedDevices ? updatedDevices.length : 0;
 
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        success: true,
-                        message: `${approvedCount} devices approved successfully`
-                    })
-                };
+                    return {
+                        statusCode: 200,
+                        headers,
+                        body: JSON.stringify({
+                            success: true,
+                            message: `${approvedCount} devices approved successfully`
+                        })
+                    };
+                } catch (error) {
+                    console.error('Bulk approve error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error bulk approving devices: ' + error.message
+                        })
+                    };
+                }
 
             case 'getDeviceDetails':
                 const { deviceId: detailsId } = actionData;
-                const device = devices.find(d => d.id === parseInt(detailsId));
                 
-                if (!device) {
+                try {
+                    const { data: device, error } = await supabase
+                        .from('devices')
+                        .select('*')
+                        .eq('id', detailsId)
+                        .single();
+                    
+                    if (error) {
+                        console.error('Error fetching device details:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error fetching device details: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!device) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
                     return {
-                        statusCode: 404,
+                        statusCode: 200,
                         headers,
-                        body: JSON.stringify({ 
-                            success: false, 
-                            message: 'Device not found' 
+                        body: JSON.stringify({
+                            success: true,
+                            device: {
+                                ...device,
+                                // Add additional details
+                                browser: device.browser_info && device.browser_info.includes('Chrome') ? 'Chrome' : 
+                                        device.browser_info && device.browser_info.includes('Firefox') ? 'Firefox' : 
+                                        device.browser_info && device.browser_info.includes('Safari') ? 'Safari' : 'Unknown',
+                                os: device.os_info || 'Unknown',
+                                sessions: device.usage_count || 0,
+                                data_usage: 'N/A'
+                            }
+                        })
+                    };
+                } catch (error) {
+                    console.error('Get device details error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error fetching device details: ' + error.message
                         })
                     };
                 }
-
-                return {
-                    statusCode: 200,
-                    headers,
-                    body: JSON.stringify({
-                        success: true,
-                        device: {
-                            ...device,
-                            // Add additional details
-                            browser: device.user_agent.includes('Chrome') ? 'Chrome' : 
-                                    device.user_agent.includes('Firefox') ? 'Firefox' : 
-                                    device.user_agent.includes('Safari') ? 'Safari' : 'Unknown',
-                            os: device.user_agent.includes('Windows') ? 'Windows' :
-                                device.user_agent.includes('Mac') ? 'macOS' :
-                                device.user_agent.includes('Linux') ? 'Linux' : 'Unknown',
-                            sessions: Math.floor(Math.random() * 50) + 1,
-                            data_usage: Math.floor(Math.random() * 1000) + 100 + ' MB'
-                        }
-                    })
-                };
 
             default:
                 return {
