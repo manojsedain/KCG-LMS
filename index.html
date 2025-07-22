@@ -492,55 +492,77 @@
             }, 3000);
         }
         
-        // Show installation instructions modal
-        function showInstallationInstructions() {
+        // Show device validator installation instructions
+        function showDeviceValidatorInstructions(username) {
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
             modal.innerHTML = `
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h3>🚀 Installation Instructions</h3>
+                        <h3>🔐 Device Registration Instructions</h3>
                         <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
                     </div>
                     <div class="modal-body">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center;">
+                            <strong>📋 User: ${username}</strong><br>
+                            <small>Device validation required for security</small>
+                        </div>
+                        
                         <h4>📥 Step 1: Install Browser Extension</h4>
-                        <p>First, install a userscript manager:</p>
+                        <p>First, install a userscript manager if you haven't already:</p>
                         <ul>
                             <li><strong>Chrome/Edge:</strong> <a href="https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank">Tampermonkey</a></li>
                             <li><strong>Firefox:</strong> <a href="https://addons.mozilla.org/en-US/firefox/addon/tampermonkey/" target="_blank">Tampermonkey</a> or <a href="https://addons.mozilla.org/en-US/firefox/addon/greasemonkey/" target="_blank">Greasemonkey</a></li>
                             <li><strong>Safari:</strong> <a href="https://apps.apple.com/us/app/tampermonkey/id1482490089" target="_blank">Tampermonkey</a></li>
                         </ul>
                         
-                        <h4>📋 Step 2: Install the Script</h4>
+                        <h4>🔐 Step 2: Install Device Validator</h4>
                         <ol>
-                            <li>Open the downloaded <code>lms-ai-assistant.user.js</code> file</li>
+                            <li>Open the downloaded <code>lms-device-validator.user.js</code> file</li>
                             <li>Your userscript manager should automatically detect it</li>
                             <li>Click "Install" when prompted</li>
-                            <li>Navigate to your LMS website</li>
-                            <li>Look for the 🤖 AI Assistant button in the top-right corner</li>
+                            <li><strong>Navigate to King's College LMS:</strong> <code>https://king-lms.kcg.edu/ultra/</code></li>
+                            <li>The script will automatically register your device</li>
                         </ol>
                         
-                        <h4>✨ Features Available:</h4>
+                        <h4>⏳ Step 3: Wait for Admin Approval</h4>
+                        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                            <strong>⚠️ Important:</strong> Your device must be approved by an administrator before the main AI Assistant will work.
+                        </div>
                         <ul>
-                            <li>📄 Page summarization</li>
-                            <li>✨ Content highlighting</li>
-                            <li>📝 Automatic note-taking</li>
-                            <li>📅 Calendar integration</li>
-                            <li>🌐 Content translation</li>
-                            <li>💬 AI chat assistant</li>
+                            <li>Visit the LMS and you'll see a status panel showing "Device pending approval"</li>
+                            <li>The script checks for approval every 5 seconds automatically</li>
+                            <li>Once approved, the main AI Assistant will load automatically</li>
+                            <li>If blocked, you'll be notified and need to contact support</li>
                         </ul>
                         
-                        <div class="installation-note">
-                            <strong>Note:</strong> The AI Assistant will only work on King's College LMS pages (king-lms.kcg.edu).
+                        <h4>✅ After Approval - Full Features:</h4>
+                        <ul>
+                            <li>🤖 AI-powered chat assistant</li>
+                            <li>📄 Intelligent content summarization</li>
+                            <li>✨ Smart content analysis and highlighting</li>
+                            <li>📝 Automatic note-taking and study guides</li>
+                            <li>📅 Schedule and deadline integration</li>
+                            <li>🌐 Multi-language translation support</li>
+                            <li>📊 Learning analytics and insights</li>
+                        </ul>
+                        
+                        <div style="background: #dcfce7; border: 1px solid #10b981; border-radius: 8px; padding: 15px; margin: 15px 0;">
+                            <strong>🔒 Security Note:</strong> This two-step process ensures only authorized devices can access the AI Assistant, maintaining the highest security standards.
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn-primary" onclick="this.closest('.modal-overlay').remove()">Got it!</button>
+                        <button class="btn-primary" onclick="this.closest('.modal-overlay').remove()">Understood!</button>
                     </div>
                 </div>
             `;
             
             document.body.appendChild(modal);
+        }
+        
+        // Show installation instructions modal (legacy - kept for compatibility)
+        function showInstallationInstructions() {
+            showDeviceValidatorInstructions('User');
         }
 
         // Admin panel access via typing "admin"
@@ -572,27 +594,37 @@
         async function handleDownload() {
             if (isLoading) return;
             
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('accessPassword').value.trim();
-            const downloadText = document.getElementById('downloadText');
-            const downloadLoader = document.getElementById('downloadLoader');
+            const username = document.getElementById('username').value;
+            const sitePassword = document.getElementById('accessPassword').value;
             
-            if (!username) {
+            if (!username || username.trim() === '') {
                 showToast('Please enter your username', 'error');
                 return;
             }
             
-            if (!password) {
+            if (!sitePassword || sitePassword.trim() === '') {
                 showToast('Please enter the access password', 'error');
                 return;
             }
             
+            const downloadText = document.getElementById('downloadText');
+            const downloadLoader = document.getElementById('downloadLoader');
+            
             try {
-                showToast('Preparing your LMS AI Assistant script...', 'info');
+                // Show loading state
+                downloadText.classList.add('hidden');
+                downloadLoader.classList.remove('hidden');
                 
-                // Use the new downloadScript endpoint
-                const response = await fetch('/.netlify/functions/downloadScript', {
-                    method: 'GET'
+                showToast('Validating access credentials...', 'info');
+                
+                // Validate access credentials and get device validation script
+                const response = await fetch('/.netlify/functions/validateAccess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username.trim(),
+                        sitePassword: sitePassword.trim()
+                    })
                 });
                 
                 if (response.ok) {
@@ -603,24 +635,25 @@
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = 'lms-ai-assistant.user.js';
+                    a.download = 'lms-device-validator.user.js';
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    showToast(' LMS AI Assistant downloaded! Install it in your browser to get started.', 'success');
+                    showToast('🎉 Device validator downloaded! Install it to register your device.', 'success');
                     
                     // Show installation instructions
                     setTimeout(() => {
-                        showInstallationInstructions();
+                        showDeviceValidatorInstructions(username);
                     }, 2000);
                     
-                    // Clear the username field
+                    // Clear the form fields
                     document.getElementById('username').value = '';
+                    document.getElementById('accessPassword').value = '';
                 } else {
                     const errorText = await response.text();
-                    let errorMessage = 'Download failed';
+                    let errorMessage = 'Access denied';
                     try {
                         const errorData = JSON.parse(errorText);
                         errorMessage = errorData.message || errorMessage;
@@ -632,6 +665,8 @@
             } catch (error) {
                 console.error('Download error:', error);
                 showToast('Download failed. Please check your connection and try again.', 'error');
+            } finally {
+                // Reset loading state
                 downloadText.classList.remove('hidden');
                 downloadLoader.classList.add('hidden');
             }

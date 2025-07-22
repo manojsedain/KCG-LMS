@@ -1712,46 +1712,55 @@
         }
         
         async function loadLogs() {
-            const container = document.getElementById('logsList');
-            container.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
-                    <i class="fas fa-file-alt text-4xl mb-4"></i>
-                    <p>Loading logs...</p>
-                </div>
-            `;
-            
-            // Simulate log data for demo
-            setTimeout(() => {
-                const demoLogs = [
-                    {
-                        id: 1,
-                        log_type: 'admin',
-                        level: 'info',
-                        message: 'Admin login successful',
-                        details: { ip: '192.168.1.1' },
-                        created_at: new Date().toISOString()
-                    },
-                    {
-                        id: 2,
-                        log_type: 'device',
-                        level: 'info',
-                        message: 'New device registration',
-                        details: { username: 'student1', device_id: 'DEV001' },
-                        created_at: new Date(Date.now() - 3600000).toISOString()
-                    },
-                    {
-                        id: 3,
-                        log_type: 'security',
-                        level: 'warning',
-                        message: 'Failed login attempt',
-                        details: { ip: '192.168.1.100', attempts: 3 },
-                        created_at: new Date(Date.now() - 7200000).toISOString()
-                    }
-                ];
+            try {
+                const container = document.getElementById('logsList');
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-4xl mb-4"></i>
+                        <p>Loading logs...</p>
+                    </div>
+                `;
                 
-                displayLogs(demoLogs);
-                updateLogStats(demoLogs);
-            }, 1000);
+                const response = await fetch('/.netlify/functions/logsManagement', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'getLogs',
+                        token: localStorage.getItem('adminToken'),
+                        logType: document.getElementById('logTypeFilter')?.value || 'all',
+                        level: document.getElementById('logLevelFilter')?.value || 'all',
+                        limit: 50,
+                        offset: 0
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayLogs(data.logs);
+                    updateLogStats(data.logs);
+                    showToast('Logs loaded successfully', 'success');
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error loading logs:', error);
+                showToast('Failed to load logs: ' + error.message, 'error');
+                
+                // Show error state
+                const container = document.getElementById('logsList');
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4 text-red-400"></i>
+                        <p>Failed to load logs</p>
+                        <button onclick="loadLogs()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            Retry
+                        </button>
+                    </div>
+                `;
+            }
         }
         
         function displayLogs(logs) {
