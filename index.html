@@ -367,6 +367,11 @@
         let adminTimeout;
 
         document.addEventListener('keypress', function(e) {
+            // Don't trigger admin shortcut if typing in input fields
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+            
             adminKeySequence += e.key.toLowerCase();
             
             // Clear sequence after 2 seconds of inactivity

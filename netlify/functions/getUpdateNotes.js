@@ -5,7 +5,7 @@ const { db } = require('../../utils/supabase');
 const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Content-Type': 'application/json'
 };
 
@@ -15,7 +15,37 @@ exports.handler = async (event, context) => {
         return { statusCode: 200, headers, body: '' };
     }
 
-    // Only allow POST requests
+    // Handle GET requests for basic version info
+    if (event.httpMethod === 'GET') {
+        try {
+            // Get active script for version info
+            const activeScript = await db.getActiveScript();
+            
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    version: activeScript?.version || '1.0.0',
+                    lastUpdate: activeScript?.created_at || new Date().toISOString(),
+                    updateNotes: activeScript?.update_notes || 'Welcome to LMS AI Assistant'
+                })
+            };
+        } catch (error) {
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    version: '1.0.0',
+                    lastUpdate: new Date().toISOString(),
+                    updateNotes: 'Welcome to LMS AI Assistant'
+                })
+            };
+        }
+    }
+    
+    // Only allow POST requests for detailed device info
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,

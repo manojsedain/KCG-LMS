@@ -52,20 +52,30 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Validate site password
-        const storedSitePassword = await db.getSetting('site_password') || process.env.SITE_PASSWORD || 'wrongnumber';
+        // Validate site password (with fallback)
+        let storedSitePassword;
+        try {
+            storedSitePassword = await db.getSetting('site_password') || process.env.SITE_PASSWORD || 'wrongnumber';
+        } catch (error) {
+            // Fallback if database is not available
+            storedSitePassword = process.env.SITE_PASSWORD || 'wrongnumber';
+        }
         if (sitePassword !== storedSitePassword) {
-            await db.createLog({
-                log_type: 'security',
-                level: 'warn',
-                message: 'Invalid site password for loader download',
-                details: {
-                    username,
-                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
-                    user_agent: event.headers['user-agent']
-                },
-                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-            });
+            try {
+                await db.createLog({
+                    log_type: 'security',
+                    level: 'warn',
+                    message: 'Invalid site password for loader download',
+                    details: {
+                        username,
+                        ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                        user_agent: event.headers['user-agent']
+                    },
+                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+                });
+            } catch (logError) {
+                console.log('Could not log security event:', logError.message);
+            }
 
             return {
                 statusCode: 401,
@@ -108,17 +118,21 @@ exports.handler = async (event, context) => {
             .replace(/\{\{VERSION\}\}/g, '1.0.0');
 
         // Log successful loader generation
-        await db.createLog({
-            log_type: 'script',
-            level: 'info',
-            message: 'Loader script generated',
-            details: {
-                username,
-                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
-                user_agent: event.headers['user-agent']
-            },
-            ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
-        });
+        try {
+            await db.createLog({
+                log_type: 'script',
+                level: 'info',
+                message: 'Loader script generated',
+                details: {
+                    username,
+                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                    user_agent: event.headers['user-agent']
+                },
+                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
+            });
+        } catch (logError) {
+            console.log('Could not log success event:', logError.message);
+        }
 
         return {
             statusCode: 200,
