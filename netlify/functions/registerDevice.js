@@ -156,19 +156,24 @@ exports.handler = async (event, context) => {
         }
 
         // Generate AES key for device
-        const { data: aesKeyData, error: aesError } = await supabase
-            .rpc('generate_aes_key');
-
-        if (aesError) {
-            console.error('Error generating AES key:', aesError);
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Failed to generate encryption key' 
-                })
-            };
+        let aesKeyData;
+        try {
+            const { data, error: aesError } = await supabase
+                .rpc('generate_aes_key');
+            
+            if (aesError) {
+                console.error('Error generating AES key:', aesError);
+                // Fallback to generating key in Node.js
+                const crypto = require('crypto');
+                aesKeyData = crypto.randomBytes(32).toString('base64');
+            } else {
+                aesKeyData = data;
+            }
+        } catch (error) {
+            console.error('AES key generation failed:', error);
+            // Fallback to generating key in Node.js
+            const crypto = require('crypto');
+            aesKeyData = crypto.randomBytes(32).toString('base64');
         }
 
         // Check auto-approval setting
@@ -190,7 +195,7 @@ exports.handler = async (event, context) => {
                 hwid,
                 fingerprint,
                 device_name: deviceName || 'Unknown Device',
-                browser_info: browserInfo || navigator.userAgent,
+                browser_info: browserInfo || event.headers['user-agent'] || 'Unknown Browser',
                 os_info: osInfo || 'Unknown OS',
                 status: deviceStatus,
                 aes_key: aesKeyData,
