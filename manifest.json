@@ -1,0 +1,14 @@
+{
+  "name": "LMS AI Assistant Admin",
+  "short_name": "LMS AI Admin",
+  "description": "Administrative control panel for LMS AI Assistant",
+  "start_url": "/admin.html",
+  "display": "standalone",
+  "background_color": "#0f0f23",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [],
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}

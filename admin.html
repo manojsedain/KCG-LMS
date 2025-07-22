@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS AI Assistant - Admin Panel</title>
+    <meta name="description" content="Administrative control panel for LMS AI Assistant">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https:;">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e293b">
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#8b5cf6',
+                        accent: '#06b6d4',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        error: '#ef4444',
+                        dark: '#1e293b',
+                        'dark-light': '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #6366f1;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+            padding: 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success { background: #10b981; }
+        .toast.error { background: #ef4444; }
+        .toast.warning { background: #f59e0b; }
+        .toast.info { background: #06b6d4; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen text-white">
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+    
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fixed inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center z-50">
+        <div class="glass rounded-2xl p-8 w-full max-w-md mx-4">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-shield-alt text-2xl text-white"></i>
+                </div>
+                <h1 class="text-2xl font-bold mb-2">Admin Access</h1>
+                <p class="text-gray-300">Enter your credentials to continue</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Admin Password</label>
+                    <input type="password" id="adminPassword" class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter admin password" required>
+                </div>
+                
+                <div id="twoFactorSection" class="hidden">
+                    <label class="block text-sm font-medium mb-2">Two-Factor Code</label>
+                    <input type="text" id="twoFactorCode" class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Enter 6-digit code" maxlength="6">
+                </div>
+                
+                <button type="submit" id="loginBtn" class="w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/80 hover:to-secondary/80 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-primary/50">
+                    <span id="loginBtnText">Sign In</span>
+                    <div id="loginSpinner" class="loading-spinner mx-auto hidden"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Main Admin Interface -->
+    <div id="adminInterface" class="hidden">
+        <!-- Sidebar -->
+        <div id="sidebar" class="fixed left-0 top-0 h-full w-64 glass z-40">
+            <div class="p-6">
+                <div class="flex items-center space-x-3 mb-8">
+                    <div class="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-cog text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg">Admin Panel</h1>
+                        <p class="text-xs text-gray-400">LMS AI Assistant</p>
+                    </div>
+                </div>
+                
+                <nav class="space-y-2">
+                    <a href="#dashboard" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors active bg-white/20">
+                        <i class="fas fa-tachometer-alt w-5"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#script-management" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
+                        <i class="fas fa-code w-5"></i>
+                        <span>Script Management</span>
+                    </a>
+                    <a href="#system-settings" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
+                        <i class="fas fa-cogs w-5"></i>
+                        <span>System Settings</span>
+                    </a>
+                    <a href="#notifications" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
+                        <i class="fas fa-bell w-5"></i>
+                        <span>Notifications</span>
+                    </a>
+                    <a href="#logs" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
+                        <i class="fas fa-file-alt w-5"></i>
+                        <span>Logs</span>
+                    </a>
+                    <a href="#devices" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
+                        <i class="fas fa-laptop w-5"></i>
+                        <span>Device Management</span>
+                    </a>
+                </nav>
+                
+                <div class="absolute bottom-6 left-6 right-6">
+                    <button id="logoutBtn" class="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-600/20 hover:bg-red-600/30 rounded-lg transition-colors">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div id="mainContent" class="ml-64">
+            <!-- Header -->
+            <header class="glass border-b border-white/10 p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 id="pageTitle" class="text-2xl font-bold">Dashboard</h2>
+                        <p id="pageSubtitle" class="text-gray-400">System overview and statistics</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <p class="text-sm text-gray-400">Last login</p>
+                            <p id="lastLogin" class="text-sm font-medium">Loading...</p>
+                        </div>
+                        <div class="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-white"></i>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Content Area -->
+            <main class="p-6">
+                <!-- Dashboard Section -->
+                <div id="dashboard-section" class="content-section">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Active Devices</p>
+                                    <p id="activeDevicesCount" class="text-2xl font-bold">0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-laptop text-primary"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Script Version</p>
+                                    <p id="currentVersion" class="text-2xl font-bold">v1.0.0</p>
+                                </div>
+                                <div class="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-code text-secondary"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">System Status</p>
+                                    <p id="systemStatus" class="text-2xl font-bold text-success">Online</p>
+                                </div>
+                                <div class="w-12 h-12 bg-success/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-success"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-gray-400 text-sm">Last Update</p>
+                                    <p id="lastUpdate" class="text-2xl font-bold">Today</p>
+                                </div>
+                                <div class="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-accent"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold mb-4">Device Activity</h3>
+                            <canvas id="deviceChart" width="400" height="200"></canvas>
+                        </div>
+                        
+                        <div class="glass rounded-xl p-6">
+                            <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+                            <div id="recentActivity" class="space-y-4">
+                                <div class="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
+                                    <div class="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-check text-success text-xs"></i>
+                                    </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium">System initialized</p>
+                                        <p class="text-xs text-gray-400">Just now</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Script Management Section -->
+                <div id="script-management-section" class="content-section hidden">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">Script Management</h3>
+                        <p class="text-gray-400">Upload and manage your LMS AI scripts here.</p>
+                    </div>
+                </div>
+                
+                <!-- System Settings Section -->
+                <div id="system-settings-section" class="content-section hidden">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">System Settings</h3>
+                        <p class="text-gray-400">Configure system passwords and security settings.</p>
+                    </div>
+                </div>
+                
+                <!-- Notifications Section -->
+                <div id="notifications-section" class="content-section hidden">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">Notifications</h3>
+                        <p class="text-gray-400">Configure EmailJS and notification settings.</p>
+                    </div>
+                </div>
+                
+                <!-- Logs Section -->
+                <div id="logs-section" class="content-section hidden">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">System Logs</h3>
+                        <p class="text-gray-400">View admin actions and device logs.</p>
+                    </div>
+                </div>
+                
+                <!-- Devices Section -->
+                <div id="devices-section" class="content-section hidden">
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">Device Management</h3>
+                        <p class="text-gray-400">Manage registered devices and permissions.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUser = null;
+        let isLoggedIn = false;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Check if user is already logged in
+            const savedSession = localStorage.getItem('adminSession');
+            if (savedSession) {
+                const session = JSON.parse(savedSession);
+                if (session.expires > Date.now()) {
+                    showAdminInterface();
+                    return;
+                }
+            }
+            
+            // Show login screen
+            showLoginScreen();
+            
+            // Initialize event listeners
+            initializeEventListeners();
+        }
+
+        function initializeEventListeners() {
+            // Login form
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            
+            // Navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', handleNavigation);
+            });
+            
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('adminInterface').classList.add('hidden');
+        }
+
+        function showAdminInterface() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('adminInterface').classList.remove('hidden');
+            isLoggedIn = true;
+            
+            // Load dashboard data
+            loadDashboardData();
+            
+            // Update last login time
+            document.getElementById('lastLogin').textContent = new Date().toLocaleString();
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('adminPassword').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const loginBtnText = document.getElementById('loginBtnText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            
+            // Show loading state
+            loginBtnText.classList.add('hidden');
+            loginSpinner.classList.remove('hidden');
+            loginBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/.netlify/functions/adminLogin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Save session
+                    const session = {
+                        token: result.token,
+                        expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+                    };
+                    localStorage.setItem('adminSession', JSON.stringify(session));
+                    
+                    showToast('Login successful!', 'success');
+                    showAdminInterface();
+                } else {
+                    showToast(result.message || 'Login failed', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast('Login failed. Please try again.', 'error');
+            } finally {
+                // Reset button state
+                loginBtnText.classList.remove('hidden');
+                loginSpinner.classList.add('hidden');
+                loginBtn.disabled = false;
+            }
+        }
+
+        function handleNavigation(e) {
+            e.preventDefault();
+            
+            const target = e.currentTarget.getAttribute('href').substring(1);
+            
+            // Update active nav item
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active', 'bg-white/20');
+            });
+            e.currentTarget.classList.add('active', 'bg-white/20');
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show target section
+            const targetSection = document.getElementById(target + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            // Update page title
+            updatePageTitle(target);
+        }
+
+        function updatePageTitle(section) {
+            const titles = {
+                'dashboard': { title: 'Dashboard', subtitle: 'System overview and statistics' },
+                'script-management': { title: 'Script Management', subtitle: 'Upload and manage LMS AI scripts' },
+                'system-settings': { title: 'System Settings', subtitle: 'Configure passwords and security' },
+                'notifications': { title: 'Notifications', subtitle: 'Configure EmailJS and alerts' },
+                'logs': { title: 'System Logs', subtitle: 'View admin actions and device logs' },
+                'devices': { title: 'Device Management', subtitle: 'Manage registered devices' }
+            };
+            
+            const pageInfo = titles[section] || titles['dashboard'];
+            document.getElementById('pageTitle').textContent = pageInfo.title;
+            document.getElementById('pageSubtitle').textContent = pageInfo.subtitle;
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('adminSession');
+            isLoggedIn = false;
+            currentUser = null;
+            showLoginScreen();
+            showToast('Logged out successfully', 'info');
+        }
+
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/.netlify/functions/getDashboardData');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateDashboardStats(data.stats);
+                    updateDeviceChart(data.deviceActivity);
+                    updateRecentActivity(data.recentActivity);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showToast('Failed to load dashboard data', 'error');
+            }
+        }
+
+        function updateDashboardStats(stats) {
+            if (stats) {
+                document.getElementById('activeDevicesCount').textContent = stats.activeDevices || 0;
+                document.getElementById('currentVersion').textContent = stats.currentVersion || 'v1.0.0';
+                document.getElementById('systemStatus').textContent = stats.systemStatus || 'Online';
+                document.getElementById('lastUpdate').textContent = stats.lastUpdate || 'Today';
+            }
+        }
+
+        function updateDeviceChart(deviceActivity) {
+            const ctx = document.getElementById('deviceChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Active Devices',
+                        data: deviceActivity || [12, 19, 3, 5, 2, 3, 9],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#9ca3af'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#9ca3af'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRecentActivity(activities) {
+            const container = document.getElementById('recentActivity');
+            
+            if (activities && activities.length > 0) {
+                container.innerHTML = activities.map(activity => `
+                    <div class="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
+                        <div class="w-8 h-8 bg-${activity.type === 'success' ? 'success' : 'primary'}/20 rounded-full flex items-center justify-center">
+                            <i class="fas fa-${activity.icon || 'info'} text-${activity.type === 'success' ? 'success' : 'primary'} text-xs"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium">${activity.message}</p>
+                            <p class="text-xs text-gray-400">${activity.time}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white/80 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // Prevent unauthorized access
+        window.addEventListener('beforeunload', function() {
+            if (!isLoggedIn) {
+                localStorage.removeItem('adminSession');
+            }
+        });
+
+        // Security measures
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) ||
+                (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+                showToast('Developer tools are disabled', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>
