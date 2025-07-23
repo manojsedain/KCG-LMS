@@ -149,64 +149,218 @@ function getInlineLoaderTemplate() {
     
     console.log('🔐 LMS AI Assistant Device Validator v' + CONFIG.VERSION + ' loaded!');
     
-    // Enhanced loadMainScript function with appendChild fixes
-    async function loadMainScript() {
-        const hwid = GM_getValue('device_hwid');
-        const fingerprint = GM_getValue('device_fingerprint');
-        const deviceId = GM_getValue('device_id');
+    let deviceInfo = null;
+    let checkInterval = null;
+    let statusPanel = null;
+    
+    // Generate device fingerprint and HWID
+    function generateDeviceInfo() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillText('Device fingerprint', 2, 2);
         
+        const fingerprint = btoa(JSON.stringify({
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+            platform: navigator.platform,
+            cookieEnabled: navigator.cookieEnabled,
+            doNotTrack: navigator.doNotTrack,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            screen: {
+                width: screen.width,
+                height: screen.height,
+                colorDepth: screen.colorDepth
+            },
+            canvas: canvas.toDataURL(),
+            webgl: getWebGLFingerprint()
+        }));
+        
+        const hwid = btoa(navigator.userAgent + navigator.platform + screen.width + screen.height);
+        
+        return {
+            username: CONFIG.USERNAME,
+            hwid: hwid,
+            fingerprint: fingerprint,
+            deviceName: getBrowserName() + ' on ' + getOSName(),
+            browserInfo: navigator.userAgent,
+            osInfo: navigator.platform
+        };
+    }
+    
+    function getWebGLFingerprint() {
         try {
-            const response = await makeRequest(\`\${CONFIG.API_BASE}/getMainLoader\`, {
-                username: CONFIG.USERNAME,
-                hwid,
-                fingerprint,
-                deviceId
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            if (!gl) return 'no-webgl';
+            
+            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+            return debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown';
+        } catch (e) {
+            return 'error';
+        }
+    }
+    
+    function getBrowserName() {
+        const userAgent = navigator.userAgent;
+        if (userAgent.includes('Chrome')) return 'Chrome';
+        if (userAgent.includes('Firefox')) return 'Firefox';
+        if (userAgent.includes('Safari')) return 'Safari';
+        if (userAgent.includes('Edge')) return 'Edge';
+        return 'Unknown';
+    }
+    
+    function getOSName() {
+        const platform = navigator.platform;
+        if (platform.includes('Win')) return 'Windows';
+        if (platform.includes('Mac')) return 'macOS';
+        if (platform.includes('Linux')) return 'Linux';
+        return 'Unknown';
+    }
+    
+    // Register device with backend
+    async function registerDevice() {
+        try {
+            const response = await fetch(CONFIG.API_BASE + '/registerDevice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deviceInfo)
             });
             
-            if (!response) {
-                throw new Error('Empty response from server');
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Device registration error:', error);
+            return { success: false, message: 'Registration failed' };
+        }
+    }
+    
+    // Check device status
+    async function checkDeviceStatus() {
+        try {
+            const response = await fetch(CONFIG.API_BASE + '/checkDeviceStatus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: deviceInfo.username,
+                    hwid: deviceInfo.hwid,
+                    fingerprint: deviceInfo.fingerprint
+                })
+            });
+            
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('Device status check error:', error);
+            return { success: false, status: 'error' };
+        }
+    }
+    
+    // FIXED: Load main script with appendChild error handling
+    async function loadMainScript() {
+        try {
+            const response = await fetch(CONFIG.API_BASE + '/getMainLoader', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: deviceInfo.username,
+                    hwid: deviceInfo.hwid,
+                    fingerprint: deviceInfo.fingerprint
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
             }
             
+            const scriptContent = await response.text();
+            
             // Validate that response is valid JavaScript
-            if (typeof response !== 'string') {
-                throw new Error('Invalid response format: expected string');
+            if (typeof scriptContent !== 'string' || !scriptContent.trim()) {
+                throw new Error('Invalid response format: expected non-empty string');
             }
             
             // Check for common invalid content patterns
-            if (response.includes('<!DOCTYPE') || response.includes('<html')) {
+            if (scriptContent.includes('<!DOCTYPE') || scriptContent.includes('<html')) {
                 throw new Error('Received HTML instead of JavaScript');
             }
             
             // Basic JavaScript syntax validation
             try {
-                new Function(response);
+                new Function(scriptContent);
             } catch (syntaxError) {
                 throw new Error('Invalid JavaScript syntax: ' + syntaxError.message);
             }
             
-            // Create a safer execution context
+            // SAFE EXECUTION: Use Function constructor instead of appendChild
             try {
-                // Execute the main loader script in a controlled way
-                const scriptFunction = new Function(response);
+                const scriptFunction = new Function(scriptContent);
                 scriptFunction.call(window);
                 console.log('✅ Main LMS AI Assistant script loaded successfully!');
+                hideStatusPanel();
             } catch (execError) {
                 throw new Error('Script execution failed: ' + execError.message);
             }
             
         } catch (error) {
-            console.error('Failed to load main script: ' + error.message);
+            console.error('Main script loading error:', error);
             console.error('Script loading error details:', {
                 error: error.message,
                 stack: error.stack,
-                hwid: hwid ? hwid.substring(0, 8) + '...' : 'null',
-                fingerprint: fingerprint ? fingerprint.substring(0, 8) + '...' : 'null',
-                deviceId: deviceId || 'null'
+                hwid: deviceInfo?.hwid ? deviceInfo.hwid.substring(0, 8) + '...' : 'null',
+                fingerprint: deviceInfo?.fingerprint ? deviceInfo.fingerprint.substring(0, 8) + '...' : 'null'
             });
+            showStatusPanel('error', 'Failed to load main script: ' + error.message);
         }
     }
     
-    // Device validation and initialization logic
+    // Show status panel
+    function showStatusPanel(status, message) {
+        hideStatusPanel();
+        
+        statusPanel = document.createElement('div');
+        statusPanel.id = 'lms-ai-status-panel';
+        statusPanel.innerHTML = \`
+            <div style="
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                z-index: 10000;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                font-size: 14px;
+                max-width: 300px;
+                border: 2px solid \${status === 'pending' ? '#f59e0b' : status === 'blocked' ? '#ef4444' : status === 'error' ? '#ef4444' : '#10b981'};
+            ">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 18px; margin-right: 8px;">
+                        \${status === 'pending' ? '⏳' : status === 'blocked' ? '🚫' : status === 'active' ? '✅' : '❌'}
+                    </span>
+                    <strong>LMS AI Assistant</strong>
+                </div>
+                <div style="font-size: 12px; opacity: 0.9;">
+                    \${message}
+                </div>
+                \${status === 'pending' ? '<div style="margin-top: 8px; font-size: 11px; opacity: 0.8;">Checking status every 5 seconds...</div>' : ''}
+            </div>
+        \`;
+        
+        document.body.appendChild(statusPanel);
+    }
+    
+    function hideStatusPanel() {
+        if (statusPanel) {
+            statusPanel.remove();
+            statusPanel = null;
+        }
+    }
+    
+    // Main initialization
     async function initialize() {
         console.log('🔐 Device validation system initialized for user: ' + CONFIG.USERNAME);
         
@@ -216,43 +370,60 @@ function getInlineLoaderTemplate() {
             return;
         }
         
-        // For demo purposes, simulate device approval and load main script
-        setTimeout(async () => {
-            await loadMainScript();
-        }, 2000);
-    }
-    
-    // Utility function for making requests
-    async function makeRequest(url, data) {
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: url,
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                data: JSON.stringify(data),
-                onload: function(response) {
-                    if (response.status === 200) {
-                        try {
-                            if (response.responseText.startsWith('{')) {
-                                const result = JSON.parse(response.responseText);
-                                resolve(result);
-                            } else {
-                                resolve(response.responseText);
-                            }
-                        } catch (error) {
-                            reject(new Error('Failed to parse response: ' + error.message));
-                        }
-                    } else {
-                        reject(new Error(\`HTTP \${response.status}: \${response.statusText}\`));
-                    }
-                },
-                onerror: function(error) {
-                    reject(new Error('Network error: ' + error.message));
+        deviceInfo = generateDeviceInfo();
+        console.log('Device Info:', deviceInfo);
+        
+        // Register device
+        showStatusPanel('pending', 'Registering device...');
+        const registrationResult = await registerDevice();
+        
+        if (!registrationResult.success) {
+            showStatusPanel('error', 'Registration failed: ' + registrationResult.message);
+            return;
+        }
+        
+        // Start checking device status
+        const checkInterval = setInterval(async () => {
+            const statusResult = await checkDeviceStatus();
+            
+            if (statusResult.success) {
+                switch (statusResult.status) {
+                    case 'active':
+                        clearInterval(checkInterval);
+                        showStatusPanel('active', 'Device approved! Loading AI Assistant...');
+                        setTimeout(() => {
+                            loadMainScript();
+                        }, 2000);
+                        break;
+                        
+                    case 'blocked':
+                        clearInterval(checkInterval);
+                        showStatusPanel('blocked', 'Device has been blocked by administrator');
+                        break;
+                        
+                    case 'pending':
+                        showStatusPanel('pending', 'Device pending approval from administrator');
+                        break;
+                        
+                    default:
+                        showStatusPanel('error', 'Unknown device status: ' + statusResult.status);
                 }
-            });
-        });
+            } else {
+                showStatusPanel('error', 'Failed to check device status');
+            }
+        }, 5000);
+        
+        // Initial status check
+        const initialStatus = await checkDeviceStatus();
+        if (initialStatus.success && initialStatus.status === 'active') {
+            clearInterval(checkInterval);
+            showStatusPanel('active', 'Device already approved! Loading AI Assistant...');
+            setTimeout(() => {
+                loadMainScript();
+            }, 2000);
+        } else {
+            showStatusPanel('pending', 'Device pending approval from administrator');
+        }
     }
     
     // Initialize when DOM is ready
