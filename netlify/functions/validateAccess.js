@@ -239,7 +239,7 @@ exports.handler = async (event, context) => {
     // Load main script with appendChild error handling
     async function loadMainScript() {
         try {
-            const response = await fetch(CONFIG.BACKEND_URL + '/getMainLoader', {
+            const response = await fetch(CONFIG.BACKEND_URL + '/getMainLoaderSimple', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
