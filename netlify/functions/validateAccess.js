@@ -412,7 +412,9 @@ exports.handler = async (event, context) => {
         }
         
         // Start checking device status
+        console.log('🔄 Starting device status check interval (every 5 seconds)');
         checkInterval = setInterval(async () => {
+            console.log('⏰ Interval timer triggered - checking device status...');
             const statusResult = await checkDeviceStatus();
             
             if (statusResult.success) {
@@ -443,6 +445,7 @@ exports.handler = async (event, context) => {
         }, CONFIG.CHECK_INTERVAL);
         
         // Initial status check
+        console.log('🔍 Performing initial device status check...');
         const initialStatus = await checkDeviceStatus();
         if (initialStatus.success && initialStatus.status === 'active') {
             clearInterval(checkInterval);
