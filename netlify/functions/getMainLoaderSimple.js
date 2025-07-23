@@ -313,7 +313,7 @@ exports.handler = async (event, context) => {
         return {
             statusCode: 200,
             headers,
-            body: testScript
+            body: mainScript
         };
 
     } catch (error) {
