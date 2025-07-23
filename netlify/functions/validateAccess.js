@@ -110,8 +110,8 @@ exports.handler = async (event, context) => {
         const deviceValidationScript = `// ==UserScript==
 // @name         LMS AI Assistant - Device Validator
 // @namespace    https://wrongnumber.netlify.app/
-// @version      1.0.0
-// @description  Device validation and registration for LMS AI Assistant
+// @version      8.2.2
+// @description  Device validation and registration for LMS AI Assistant (appendChild fix applied)
 // @author       LMS AI Assistant
 // @match        https://king-lms.kcg.edu/ultra/*
 // @grant        none
@@ -236,10 +236,10 @@ exports.handler = async (event, context) => {
         }
     }
     
-    // Load main script
+    // Load main script with appendChild error handling
     async function loadMainScript() {
         try {
-            const response = await fetch(CONFIG.BACKEND_URL + '/getMainScript', {
+            const response = await fetch(CONFIG.BACKEND_URL + '/getMainLoader', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -249,21 +249,47 @@ exports.handler = async (event, context) => {
                 })
             });
             
-            if (response.ok) {
-                const scriptContent = await response.text();
-                
-                // Execute main script
-                const script = document.createElement('script');
-                script.textContent = scriptContent;
-                document.head.appendChild(script);
-                
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            
+            const scriptContent = await response.text();
+            
+            // Validate that response is valid JavaScript
+            if (typeof scriptContent !== 'string' || !scriptContent.trim()) {
+                throw new Error('Invalid response format: expected non-empty string');
+            }
+            
+            // Check for common invalid content patterns
+            if (scriptContent.includes('<!DOCTYPE') || scriptContent.includes('<html')) {
+                throw new Error('Received HTML instead of JavaScript');
+            }
+            
+            // Basic JavaScript syntax validation
+            try {
+                new Function(scriptContent);
+            } catch (syntaxError) {
+                throw new Error('Invalid JavaScript syntax: ' + syntaxError.message);
+            }
+            
+            // SAFE EXECUTION: Use Function constructor instead of appendChild
+            try {
+                const scriptFunction = new Function(scriptContent);
+                scriptFunction.call(window);
                 console.log('✅ Main LMS AI Assistant script loaded successfully!');
                 hideStatusPanel();
-            } else {
-                console.error('Failed to load main script');
+            } catch (execError) {
+                throw new Error('Script execution failed: ' + execError.message);
             }
+            
         } catch (error) {
             console.error('Main script loading error:', error);
+            console.error('Script loading error details:', {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            });
+            showStatusPanel('error', 'Failed to load main script: ' + error.message);
         }
     }
     
