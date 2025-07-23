@@ -101,11 +101,23 @@ exports.handler = async (event, context) => {
                         query = query.or(`username.ilike.%${search}%,device_name.ilike.%${search}%,hwid.ilike.%${search}%`);
                     }
                     
-                    // Apply sort
+                    // Apply sort with column name mapping
                     if (sort) {
                         const [field, direction] = sort.split('-');
                         const ascending = direction !== 'desc';
-                        query = query.order(field, { ascending });
+                        
+                        // Map frontend field names to actual database column names
+                        const columnMapping = {
+                            'created_desc': 'created_at',
+                            'created_asc': 'created_at',
+                            'created': 'created_at',
+                            'name': 'device_name',
+                            'user': 'username',
+                            'status': 'status'
+                        };
+                        
+                        const actualField = columnMapping[field] || field;
+                        query = query.order(actualField, { ascending });
                     } else {
                         query = query.order('created_at', { ascending: false });
                     }
