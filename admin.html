@@ -2965,14 +2965,118 @@
             showToast('Notification preview feature coming soon', 'info');
         }
         
+        // ===== ADMIN PANEL CORE FUNCTIONS =====
+        
+        function logout() {
+            // Clear session data
+            localStorage.removeItem('adminSession');
+            
+            // Reset login state
+            isLoggedIn = false;
+            
+            // Show login screen
+            showLoginScreen();
+            
+            // Clear any sensitive data from memory
+            window.adminSession = null;
+            
+            // Show logout message
+            showToast('Logged out successfully', 'success');
+            
+            // Reset form
+            document.getElementById('adminPassword').value = '';
+        }
+        
+        function initAdminPanelButtons() {
+            // Logout button
+            document.getElementById('logoutBtn')?.addEventListener('click', logout);
+            
+            // Navigation links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const target = e.currentTarget.getAttribute('href').substring(1);
+                    showSection(target);
+                    
+                    // Update active nav link
+                    document.querySelectorAll('.nav-link').forEach(l => {
+                        l.classList.remove('active', 'bg-white/20');
+                    });
+                    e.currentTarget.classList.add('active', 'bg-white/20');
+                });
+            });
+            
+            // Login form
+            document.getElementById('loginForm')?.addEventListener('submit', handleLogin);
+            
+            // Login button
+            document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
+        }
+        
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show target section
+            const targetSection = document.getElementById(sectionName + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+            
+            // Update page title
+            const titles = {
+                'dashboard': { title: 'Dashboard', subtitle: 'System overview and statistics' },
+                'script-management': { title: 'Script Management', subtitle: 'Upload and manage userscripts' },
+                'system-settings': { title: 'System Settings', subtitle: 'Configure system parameters' },
+                'notifications': { title: 'Notifications', subtitle: 'Manage system notifications' },
+                'logs': { title: 'System Logs', subtitle: 'View and manage system logs' },
+                'devices': { title: 'Device Management', subtitle: 'Manage registered devices' }
+            };
+            
+            const titleInfo = titles[sectionName] || { title: 'Admin Panel', subtitle: 'System administration' };
+            document.getElementById('pageTitle').textContent = titleInfo.title;
+            document.getElementById('pageSubtitle').textContent = titleInfo.subtitle;
+        }
+        
         // Initialize all admin panel features
         function initAdminFeatures() {
+            // Initialize core admin panel functionality first
+            initAdminPanelButtons();
+            
+            // Initialize feature modules
             initDeviceManagement();
             initLogs();
             initNotifications();
             initSystemSettings();
             initScriptManagement();
         }
+        
+        // Initialize admin panel on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if already logged in
+            const session = localStorage.getItem('adminSession');
+            if (session) {
+                try {
+                    const sessionData = JSON.parse(session);
+                    if (sessionData.token && sessionData.expiry > Date.now()) {
+                        showAdminInterface();
+                    } else {
+                        localStorage.removeItem('adminSession');
+                        showLoginScreen();
+                    }
+                } catch (error) {
+                    localStorage.removeItem('adminSession');
+                    showLoginScreen();
+                }
+            } else {
+                showLoginScreen();
+            }
+            
+            // Initialize basic button functionality even before login
+            initAdminPanelButtons();
+        });
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'F12' || 

@@ -128,32 +128,6 @@ exports.handler = async (event, context) => {
             };
         }
         
-        if (fingerprint.length > 1500) {
-            console.error('Fingerprint too long:', fingerprint.length, 'bytes');
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Device fingerprint too long (max 1500 characters). Please contact support.' 
-                })
-            };
-        }
-        
-        // Check combined size of indexed fields (hwid + fingerprint)
-        const combinedIndexSize = hwid.length + fingerprint.length;
-        if (combinedIndexSize > 2200) { // Conservative limit well below 2704 bytes
-            console.error('Combined HWID+fingerprint too long:', combinedIndexSize, 'bytes');
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Device identification data too large. Please contact support.' 
-                })
-            };
-        }
-        
         // Validate other field lengths
         if (deviceName && deviceName.length > 100) {
             return {
@@ -188,15 +162,40 @@ exports.handler = async (event, context) => {
             };
         }
 
+        // Convert long fingerprints to shorter hashes for database storage
+        let processedFingerprint = fingerprint;
+        let originalFingerprintLength = fingerprint.length;
+        
+        if (fingerprint.length > 800) {
+            // Create a SHA-256 hash of the fingerprint for database storage
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256');
+            hash.update(fingerprint);
+            processedFingerprint = hash.digest('hex'); // 64 character hex string
+            
+            console.log(`Fingerprint too long (${originalFingerprintLength} chars), converted to hash:`, processedFingerprint.substring(0, 16) + '...');
+        }
+        
+        // Ensure HWID is also within reasonable limits
+        let processedHwid = hwid;
+        if (hwid.length > 400) {
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256');
+            hash.update(hwid);
+            processedHwid = hash.digest('hex'); // 64 character hex string
+            
+            console.log(`HWID too long (${hwid.length} chars), converted to hash:`, processedHwid.substring(0, 16) + '...');
+        }
+        
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Check if device already exists
+        // Check if device already exists using processed values
         const { data: existingDevice, error: checkError } = await supabase
             .from('devices')
             .select('*')
-            .eq('hwid', hwid)
-            .eq('fingerprint', fingerprint)
+            .eq('hwid', processedHwid)
+            .eq('fingerprint', processedFingerprint)
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -327,14 +326,14 @@ exports.handler = async (event, context) => {
         const autoApprove = settingError ? false : autoApproveData.setting_value === 'true';
         const deviceStatus = autoApprove ? 'active' : 'pending';
 
-        // Create new device with duplicate handling
+        // Create new device with duplicate handling using processed values
         const { data: newDevice, error: deviceError } = await supabase
             .from('devices')
             .insert({
                 user_id: userId,
                 username,
-                hwid,
-                fingerprint,
+                hwid: processedHwid,
+                fingerprint: processedFingerprint,
                 device_name: deviceName || 'Unknown Device',
                 browser_info: browserInfo || event.headers['user-agent'] || 'Unknown Browser',
                 os_info: osInfo || 'Unknown OS',
