@@ -1,6 +1,7 @@
 // netlify/functions/getMainScript.js - Serve main script to approved devices only
 
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 // Configuration
 const CONFIG = {
@@ -50,12 +51,26 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Verify device is approved and active
+        // Process HWID and fingerprint (hash if too long, same logic as registerDevice.js)
+        let processedHwid = hwid;
+        let processedFingerprint = fingerprint;
+        
+        // Hash HWID if longer than 400 characters
+        if (hwid && hwid.length > 400) {
+            processedHwid = crypto.createHash('sha256').update(hwid).digest('hex');
+        }
+        
+        // Hash fingerprint if longer than 800 characters
+        if (fingerprint && fingerprint.length > 800) {
+            processedFingerprint = crypto.createHash('sha256').update(fingerprint).digest('hex');
+        }
+
+        // Verify device is approved and active using processed values
         const { data: device, error: deviceError } = await supabase
             .from('devices')
             .select('*')
-            .eq('hwid', hwid)
-            .eq('fingerprint', fingerprint)
+            .eq('hwid', processedHwid)
+            .eq('fingerprint', processedFingerprint)
             .eq('status', 'active')
             .single();
 
