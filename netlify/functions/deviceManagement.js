@@ -114,12 +114,20 @@ exports.handler = async (event, context) => {
                     
                     if (error) {
                         console.error('Error fetching devices:', error);
+                        console.error('Error details:', {
+                            code: error.code,
+                            message: error.message,
+                            details: error.details,
+                            hint: error.hint
+                        });
                         return {
                             statusCode: 500,
                             headers,
                             body: JSON.stringify({
                                 success: false,
-                                message: 'Error fetching devices: ' + error.message
+                                message: 'Error fetching devices: ' + error.message,
+                                error_code: error.code,
+                                error_details: error.details
                             })
                         };
                     }
