@@ -1,34 +1,6 @@
 // netlify/functions/adminLogin.js - Admin authentication
-let EncryptionUtils = null;
+const jwt = require('jsonwebtoken');
 let bcrypt = null;
-
-// Try to load dependencies with fallbacks
-try {
-    EncryptionUtils = require('../../utils/encryption');
-} catch (error) {
-    console.log('EncryptionUtils not available, using fallback');
-    // Fallback EncryptionUtils
-    EncryptionUtils = {
-        verifyToken: (token, secret) => {
-            try {
-                const [headerEncoded, payloadEncoded, signature] = token.split('.');
-                if (!headerEncoded || !payloadEncoded || !signature) return null;
-                const payload = JSON.parse(Buffer.from(payloadEncoded, 'base64').toString());
-                if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-                return payload;
-            } catch { return null; }
-        },
-        createToken: (payload, secret, expiresIn = 3600) => {
-            const tokenPayload = {
-                ...payload,
-                iat: Math.floor(Date.now() / 1000),
-                exp: Math.floor(Date.now() / 1000) + expiresIn
-            };
-            const payloadEncoded = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
-            return `header.${payloadEncoded}.signature`;
-        }
-    };
-}
 
 // Try to load bcrypt with fallback
 try {
@@ -67,7 +39,7 @@ try {
 
 // Configuration
 const CONFIG = {
-    JWT_SECRET: process.env.JWT_SECRET || 'your-jwt-secret-key',
+    JWT_SECRET: process.env.JWT_SECRET || 'V+3stApVGE9zLpJFf79RA4SAc/w2vqJygx5wQ2hW/OlGLN/rhEPFHV1tRR+zcO2APsrvMwy+IO6IgN7+jSghTw==',
     SESSION_DURATION: 24 * 60 * 60 // 24 hours in seconds
 };
 
@@ -193,15 +165,16 @@ exports.handler = async (event, context) => {
                 };
             }
 
-            // Generate admin session token
-            const sessionToken = EncryptionUtils.createToken(
+            // Generate admin session token using proper JWT library
+            const sessionToken = jwt.sign(
                 {
+                    role: 'admin',
                     type: 'admin_session',
                     ip: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
                     userAgent: event.headers['user-agent']
                 },
                 CONFIG.JWT_SECRET,
-                CONFIG.SESSION_DURATION
+                { expiresIn: CONFIG.SESSION_DURATION }
             );
 
             // Log successful admin login
