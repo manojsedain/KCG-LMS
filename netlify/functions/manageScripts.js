@@ -111,6 +111,8 @@ exports.handler = async (event, context) => {
                             description: script.update_notes || 'No description',
                             update_notes: script.update_notes,
                             created_at: script.created_at,
+                            updated_at: script.created_at,
+                            created_by: script.created_by,
                             file_size: script.file_size,
                             is_active: script.is_active,
                             downloads: 0 // TODO: Add download tracking
@@ -253,6 +255,42 @@ exports.handler = async (event, context) => {
                             version: activeScript.version,
                             checksum: activeScript.checksum
                         }
+                    })
+                };
+
+            case 'toggleStatus':
+                const { scriptId: toggleId, isActive } = actionData;
+                
+                // If activating, deactivate all other scripts first
+                if (isActive) {
+                    await supabase
+                        .from('script_updates')
+                        .update({ is_active: false })
+                        .neq('id', toggleId);
+                }
+                
+                const { error: toggleError } = await supabase
+                    .from('script_updates')
+                    .update({ is_active: isActive })
+                    .eq('id', toggleId);
+
+                if (toggleError) {
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error updating script status: ' + toggleError.message
+                        })
+                    };
+                }
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        message: `Script ${isActive ? 'activated' : 'deactivated'} successfully`
                     })
                 };
 
