@@ -201,16 +201,37 @@ exports.handler = async (event, context) => {
     // Register device with backend
     async function registerDevice() {
         try {
+            console.log('🔍 Registering device with:', {
+                url: CONFIG.BACKEND_URL + '/registerDevice',
+                username: deviceInfo.username,
+                hwid: deviceInfo.hwid?.substring(0, 20) + '...',
+                fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...',
+                deviceName: deviceInfo.deviceName
+            });
+            
             const response = await fetch(CONFIG.BACKEND_URL + '/registerDevice', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(deviceInfo)
             });
             
+            console.log('🔍 Device registration response:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            if (!response.ok) {
+                console.error('❌ Device registration HTTP error:', response.status, response.statusText);
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            
             const result = await response.json();
+            console.log('✅ Device registration result:', result);
             return result;
         } catch (error) {
-            console.error('Device registration error:', error);
+            console.error('❌ Device registration error:', error);
             return { success: false, message: 'Registration failed' };
         }
     }
@@ -218,6 +239,13 @@ exports.handler = async (event, context) => {
     // Check device status
     async function checkDeviceStatus() {
         try {
+            console.log('🔍 Checking device status with:', {
+                url: CONFIG.BACKEND_URL + '/checkDeviceStatus',
+                username: deviceInfo.username,
+                hwid: deviceInfo.hwid?.substring(0, 20) + '...',
+                fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...'
+            });
+            
             const response = await fetch(CONFIG.BACKEND_URL + '/checkDeviceStatus', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -228,10 +256,23 @@ exports.handler = async (event, context) => {
                 })
             });
             
+            console.log('🔍 Device status response:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            if (!response.ok) {
+                console.error('❌ Device status check HTTP error:', response.status, response.statusText);
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            
             const result = await response.json();
+            console.log('✅ Device status result:', result);
             return result;
         } catch (error) {
-            console.error('Device status check error:', error);
+            console.error('❌ Device status check error:', error);
             return { success: false, status: 'error' };
         }
     }
