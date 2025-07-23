@@ -89,21 +89,70 @@ exports.handler = async (event, context) => {
             };
         }
 
+        // Test the exact update payload first
+        const updatePayload = {
+            status: 'active',
+            approved_at: new Date().toISOString(),
+            approved_by: 'admin',
+            updated_at: new Date().toISOString()
+        };
+        console.log('Debug approval - Update payload:', JSON.stringify(updatePayload));
+        console.log('Debug approval - Status value type:', typeof updatePayload.status);
+        console.log('Debug approval - Status value length:', updatePayload.status.length);
+        console.log('Debug approval - Status value chars:', updatePayload.status.split('').map(c => c.charCodeAt(0)));
+
         // Try to update the device
         console.log('Debug approval - Attempting to update device status to active');
         const { data, error } = await supabase
             .from('devices')
-            .update({
-                status: 'active',
-                approved_at: new Date().toISOString(),
-                approved_by: 'admin',
-                updated_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', deviceId)
             .select();
 
         console.log('Debug approval - Update result:', data);
         console.log('Debug approval - Update error:', error);
+        
+        // If error, try a minimal update to isolate the issue
+        if (error) {
+            console.log('Debug approval - Trying minimal status-only update');
+            const { data: minimalData, error: minimalError } = await supabase
+                .from('devices')
+                .update({ status: 'active' })
+                .eq('id', deviceId)
+                .select();
+            
+            console.log('Debug approval - Minimal update result:', minimalData);
+            console.log('Debug approval - Minimal update error:', minimalError);
+            
+            // Try different status values to test constraint
+            console.log('Debug approval - Testing constraint with different status values');
+            const testStatuses = ['pending', 'blocked', 'expired'];
+            
+            for (const testStatus of testStatuses) {
+                try {
+                    console.log(`Debug approval - Testing status: ${testStatus}`);
+                    const { data: testData, error: testError } = await supabase
+                        .from('devices')
+                        .update({ status: testStatus })
+                        .eq('id', deviceId)
+                        .select();
+                    
+                    console.log(`Debug approval - Status ${testStatus} result:`, testData);
+                    console.log(`Debug approval - Status ${testStatus} error:`, testError);
+                    
+                    if (!testError) {
+                        console.log(`Debug approval - Status ${testStatus} works, reverting to pending`);
+                        await supabase
+                            .from('devices')
+                            .update({ status: 'pending' })
+                            .eq('id', deviceId);
+                        break;
+                    }
+                } catch (testErr) {
+                    console.log(`Debug approval - Status ${testStatus} exception:`, testErr);
+                }
+            }
+        }
 
         if (error) {
             console.error('Debug approval - Update error details:', error);
