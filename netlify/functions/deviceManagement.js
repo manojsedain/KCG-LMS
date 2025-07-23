@@ -17,7 +17,7 @@ const headers = {
     'Content-Type': 'application/json'
 };
 
-// Verify admin session
+  // Verify admin session
 async function verifyAdminSession(token) {
     if (!token) {
         return { valid: false, error: 'No token provided' };
@@ -84,8 +84,6 @@ exports.handler = async (event, context) => {
                             browser_info,
                             os_info,
                             status,
-                            ip_address,
-                            user_agent,
                             created_at,
                             last_used,
                             usage_count,
@@ -100,7 +98,7 @@ exports.handler = async (event, context) => {
                     
                     // Apply search
                     if (search) {
-                        query = query.or(`username.ilike.%${search}%,device_name.ilike.%${search}%,ip_address.ilike.%${search}%`);
+                        query = query.or(`username.ilike.%${search}%,device_name.ilike.%${search}%,hwid.ilike.%${search}%`);
                     }
                     
                     // Apply sort
