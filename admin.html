@@ -1000,10 +1000,13 @@
                 console.log('Response data:', result);
                 
                 if (result.success) {
-                    // Store session
+                    // Store session with consistent property names and longer duration
                     const session = {
                         token: result.token,
-                        expiry: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+                        expires: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+                        expiry: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days (backward compatibility)
+                        loginTime: Date.now(),
+                        lastActivity: Date.now()
                     };
                     localStorage.setItem('adminSession', JSON.stringify(session));
                     
@@ -1243,6 +1246,57 @@
                 localStorage.removeItem('adminSession');
             }
         });
+        
+        // ===== SESSION MANAGEMENT FUNCTIONS =====
+        
+        function updateSessionActivity() {
+            const session = localStorage.getItem('adminSession');
+            if (session) {
+                try {
+                    const sessionData = JSON.parse(session);
+                    const now = Date.now();
+                    
+                    // Update last activity
+                    sessionData.lastActivity = now;
+                    
+                    // Auto-extend session if it's within 24 hours of expiry
+                    const sessionExpiry = sessionData.expires || sessionData.expiry;
+                    if (sessionExpiry - now < (24 * 60 * 60 * 1000)) {
+                        sessionData.expires = now + (7 * 24 * 60 * 60 * 1000);
+                        sessionData.expiry = now + (7 * 24 * 60 * 60 * 1000);
+                        console.log('Session auto-extended');
+                    }
+                    
+                    localStorage.setItem('adminSession', JSON.stringify(sessionData));
+                } catch (error) {
+                    console.error('Session update error:', error);
+                }
+            }
+        }
+        
+        function getValidSession() {
+            const session = localStorage.getItem('adminSession');
+            if (!session) return null;
+            
+            try {
+                const sessionData = JSON.parse(session);
+                const now = Date.now();
+                const sessionExpiry = sessionData.expires || sessionData.expiry;
+                
+                if (sessionData.token && sessionExpiry > now) {
+                    // Update activity on each valid session check
+                    updateSessionActivity();
+                    return sessionData;
+                } else {
+                    localStorage.removeItem('adminSession');
+                    return null;
+                }
+            } catch (error) {
+                console.error('Session validation error:', error);
+                localStorage.removeItem('adminSession');
+                return null;
+            }
+        }
 
         // ===== SCRIPT MANAGEMENT FUNCTIONS =====
         
@@ -1538,17 +1592,12 @@
             `;
             
             try {
-                const session = JSON.parse(localStorage.getItem('adminSession'));
+                const session = getValidSession();
                 if (!session || !session.token) {
                     console.error('No admin session found or token missing');
-                    throw new Error('No valid admin session found');
-                }
-                
-                // Check if session has expired
-                if (session.expiry && session.expiry < Date.now()) {
-                    console.error('Admin session has expired');
-                    localStorage.removeItem('adminSession');
-                    throw new Error('Session expired');
+                    showToast('Session expired, please login again', 'error');
+                    showLoginScreen();
+                    return;
                 }
                 
                 console.log('Using admin token:', session.token.substring(0, 20) + '...');
@@ -3075,18 +3124,32 @@ function initLogsManagement() {
         
         // Initialize admin panel on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Check if already logged in
+            // Check if already logged in with improved session validation
             const session = localStorage.getItem('adminSession');
             if (session) {
                 try {
                     const sessionData = JSON.parse(session);
-                    if (sessionData.token && sessionData.expiry > Date.now()) {
+                    const now = Date.now();
+                    const sessionExpiry = sessionData.expires || sessionData.expiry;
+                    
+                    if (sessionData.token && sessionExpiry > now) {
+                        // Update last activity and extend session if needed
+                        sessionData.lastActivity = now;
+                        
+                        // Auto-extend session if it's within 24 hours of expiry
+                        if (sessionExpiry - now < (24 * 60 * 60 * 1000)) {
+                            sessionData.expires = now + (7 * 24 * 60 * 60 * 1000);
+                            sessionData.expiry = now + (7 * 24 * 60 * 60 * 1000);
+                            localStorage.setItem('adminSession', JSON.stringify(sessionData));
+                        }
+                        
                         showAdminInterface();
                     } else {
                         localStorage.removeItem('adminSession');
                         showLoginScreen();
                     }
                 } catch (error) {
+                    console.error('Session validation error:', error);
                     localStorage.removeItem('adminSession');
                     showLoginScreen();
                 }
