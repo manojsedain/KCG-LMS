@@ -239,6 +239,13 @@ exports.handler = async (event, context) => {
     // Load main script with appendChild error handling
     async function loadMainScript() {
         try {
+            console.log('🔍 Calling getMainLoaderSimple with:', {
+                url: CONFIG.BACKEND_URL + '/getMainLoaderSimple',
+                username: deviceInfo.username,
+                hwid: deviceInfo.hwid?.substring(0, 20) + '...',
+                fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...'
+            });
+            
             const response = await fetch(CONFIG.BACKEND_URL + '/getMainLoaderSimple', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -249,19 +256,29 @@ exports.handler = async (event, context) => {
                 })
             });
             
+            console.log('🔍 Response status:', response.status);
+            console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
+            console.log('🔍 Response content-type:', response.headers.get('content-type'));
+            
             if (!response.ok) {
                 throw new Error('HTTP ' + response.status + ': ' + response.statusText);
             }
             
             const scriptContent = await response.text();
             
-            // Validate that response is valid JavaScript
-            if (typeof scriptContent !== 'string' || !scriptContent.trim()) {
-                throw new Error('Invalid response format: expected non-empty string');
+            console.log('🔍 Response content length:', scriptContent.length);
+            console.log('🔍 First 200 chars:', scriptContent.substring(0, 200));
+            console.log('🔍 Contains DOCTYPE?', scriptContent.includes('<!DOCTYPE'));
+            console.log('🔍 Contains <html?', scriptContent.includes('<html'));
+            
+            // Validate JavaScript content before execution
+            if (!scriptContent || scriptContent.trim().length === 0) {
+                throw new Error('Empty script content received');
             }
             
             // Check for common invalid content patterns
             if (scriptContent.includes('<!DOCTYPE') || scriptContent.includes('<html')) {
+                console.error('❌ HTML content detected:', scriptContent.substring(0, 500));
                 throw new Error('Received HTML instead of JavaScript');
             }
             
