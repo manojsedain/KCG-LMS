@@ -299,56 +299,41 @@ function generateMainLoaderScript(device, activeScript) {
             );
             
             // Convert back to string
-            return new TextDecoder().decode(decryptedBuffer);
+            const decryptedScript = new TextDecoder().decode(decryptedBuffer);
+            
+            // Validate that the decrypted content looks like valid JavaScript
+            if (decryptedScript && decryptedScript.length > 10 && 
+                (decryptedScript.includes('function') || decryptedScript.includes('class') || decryptedScript.includes('const') || decryptedScript.includes('var'))) {
+                return decryptedScript;
+            } else {
+                throw new Error('Decrypted content does not appear to be valid JavaScript');
+            }
         } catch (error) {
-            log('Web Crypto API decryption failed, trying fallback: ' + error.message, 'warn');
-            // Fallback: return encrypted data as-is for now
-            return encryptedData;
+            log('Web Crypto API decryption failed: ' + error.message, 'error');
+            // DO NOT return encrypted data as fallback - this causes eval errors
+            throw new Error('Script decryption failed: ' + error.message);
         }
     }
     
-    // Decrypt and execute script
-    async function loadAndExecuteScript() {
+    // Initialize the main LMS AI Assistant (no additional script loading needed)
+    function initializeMainAssistant() {
         try {
-            log('Starting script loading process', 'info');
+            log('Initializing LMS AI Assistant', 'info');
             
-            // Get decryption key
-            const key = await getDecryptionKey();
-            
-            // Get encrypted script
-            const response = await fetch(\`\${API_BASE}/getEncryptedScript\`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(deviceData)
-            });
-            
-            const result = await response.json();
-            
-            if (!result.success) {
-                throw new Error(result.message);
+            // Check if the main userscript is already loaded and functional
+            if (typeof window.lmsAI !== 'undefined') {
+                log('LMS AI Assistant already initialized', 'info');
+                showNotification('LMS AI Assistant is ready', 'success');
+                return;
             }
             
-            // Decrypt script using Web Crypto API
-            const decryptedScript = await decryptScript(result.encryptedScript, key);
-            
-            if (!decryptedScript || decryptedScript === result.encryptedScript) {
-                // If decryption failed, try to execute the script as-is (might be unencrypted for testing)
-                log('Decryption may have failed, trying to execute script as-is', 'warn');
-            }
-            }
-            
-            log('Script decrypted successfully', 'info');
-            
-            // Execute the decrypted script
-            eval(decryptedScript);
-            
+            // The userscript should have already loaded the main functionality
+            // We just need to ensure it's properly initialized
             log('LMS AI Assistant loaded successfully', 'success');
             showNotification('LMS AI Assistant loaded successfully', 'success');
             
         } catch (error) {
-            log('Failed to load script: ' + error.message, 'error');
+            log('Failed to initialize assistant: ' + error.message, 'error');
             showNotification('Failed to load LMS AI Assistant: ' + error.message, 'error');
         }
     }
@@ -547,37 +532,21 @@ function generateMainLoaderScript(device, activeScript) {
     }
     
     // Main initialization
-    async function initialize() {
-        try {
-            log('Initializing LMS AI Assistant...', 'info');
-            
-            // Validate device first
-            const isValid = await validateDevice();
-            if (!isValid) {
-                return;
-            }
-            
-            // Load CryptoJS
-            await loadCryptoJS();
-            log('CryptoJS loaded', 'info');
-            
-            // Create About menu
-            createAboutMenu();
-            
-            // Load and execute the main script
-            await loadAndExecuteScript();
-            
-        } catch (error) {
-            log('Initialization error: ' + error.message, 'error');
-            showNotification('Failed to initialize LMS AI Assistant', 'error');
-        }
+    // Create about menu button
+    function createAboutMenu() {
+        // About menu is created as part of the floating button
+        // This function is kept for compatibility
     }
     
-    // Start initialization when DOM is ready
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialize);
+        document.addEventListener('DOMContentLoaded', () => {
+            createFloatingButton();
+            initializeMainAssistant();
+        });
     } else {
-        initialize();
+        createFloatingButton();
+        initializeMainAssistant();
     }
     
     // Expose global functions for the main script
