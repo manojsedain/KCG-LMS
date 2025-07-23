@@ -59,8 +59,8 @@ exports.handler = async (event, context) => {
         const lmsAiScript = `// ==UserScript==
 // @name         LMS AI Assistant - Device Validator
 // @namespace    https://wrongnumber.netlify.app/
-// @version      8.2.1
-// @description  Device validator and loader for LMS AI Assistant
+// @version      8.2.2
+// @description  Device validator and loader for LMS AI Assistant (appendChild fix applied)
 // @author       LMS AI Assistant Team
 // @match        https://king-lms.kcg.edu/ultra/*
 // @match        https://king-lms.kcg.edu/*
@@ -84,7 +84,11 @@ ${userScript}`;
             headers: {
                 ...headers,
                 'Content-Disposition': `attachment; filename="${filename}"`,
-                'Content-Type': 'application/javascript'
+                'Content-Type': 'application/javascript',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'ETag': `"${Date.now()}"`
             },
             body: lmsAiScript
         };
