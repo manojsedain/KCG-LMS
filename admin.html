@@ -1142,7 +1142,13 @@
         function updateDeviceChart(deviceActivity) {
             const ctx = document.getElementById('deviceChart').getContext('2d');
             
-            new Chart(ctx, {
+            // Destroy existing chart if it exists
+            if (window.deviceChart) {
+                window.deviceChart.destroy();
+            }
+            
+            // Create new chart and store reference
+            window.deviceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
