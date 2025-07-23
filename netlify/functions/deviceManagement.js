@@ -230,7 +230,7 @@ exports.handler = async (event, context) => {
                 }
 
             case 'blockDevice':
-                const { deviceId: blockId } = actionData;
+                const { deviceId: blockDeviceIdFirst } = actionData;
                 
                 try {
                     const { data: updatedDevice, error } = await supabase
@@ -238,7 +238,7 @@ exports.handler = async (event, context) => {
                         .update({
                             status: 'blocked'
                         })
-                        .eq('id', blockId)
+                        .eq('id', blockDeviceIdFirst)
                         .select()
                         .single();
                     
@@ -287,13 +287,13 @@ exports.handler = async (event, context) => {
                 }
 
             case 'deleteDevice':
-                const { deviceId: deleteId } = actionData;
+                const { deviceId: deleteDeviceIdFirst } = actionData;
                 
                 try {
                     const { data: deletedDevice, error } = await supabase
                         .from('devices')
                         .delete()
-                        .eq('id', deleteId)
+                        .eq('id', deleteDeviceIdFirst)
                         .select()
                         .single();
                     
@@ -382,6 +382,175 @@ exports.handler = async (event, context) => {
                         body: JSON.stringify({
                             success: false,
                             message: 'Error bulk approving devices: ' + error.message
+                        })
+                    };
+                }
+
+            case 'approveDevice':
+                const { deviceId: approveDeviceId } = actionData;
+                
+                try {
+                    const { data, error } = await supabase
+                        .from('devices')
+                        .update({
+                            status: 'active', // Use 'active' instead of 'approved' to match DB constraint
+                            approved_at: new Date().toISOString(),
+                            approved_by: 'admin',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', approveDeviceId)
+                        .select();
+                    
+                    if (error) {
+                        console.error('Error approving device:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error approving device: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!data || data.length === 0) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
+                    return {
+                        statusCode: 200,
+                        headers,
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Device approved successfully',
+                            device: data[0]
+                        })
+                    };
+                } catch (error) {
+                    console.error('Approve device error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error approving device: ' + error.message
+                        })
+                    };
+                }
+
+            case 'deleteDevice':
+                const { deviceId: deleteDeviceId } = actionData;
+                
+                try {
+                    const { data, error } = await supabase
+                        .from('devices')
+                        .delete()
+                        .eq('id', deleteDeviceId)
+                        .select();
+                    
+                    if (error) {
+                        console.error('Error deleting device:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error deleting device: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!data || data.length === 0) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
+                    return {
+                        statusCode: 200,
+                        headers,
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Device deleted successfully'
+                        })
+                    };
+                } catch (error) {
+                    console.error('Delete device error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error deleting device: ' + error.message
+                        })
+                    };
+                }
+
+            case 'blockDevice':
+                const { deviceId: blockDeviceId } = actionData;
+                
+                try {
+                    const { data, error } = await supabase
+                        .from('devices')
+                        .update({
+                            status: 'blocked',
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', blockDeviceId)
+                        .select();
+                    
+                    if (error) {
+                        console.error('Error blocking device:', error);
+                        return {
+                            statusCode: 500,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Error blocking device: ' + error.message
+                            })
+                        };
+                    }
+                    
+                    if (!data || data.length === 0) {
+                        return {
+                            statusCode: 404,
+                            headers,
+                            body: JSON.stringify({ 
+                                success: false, 
+                                message: 'Device not found' 
+                            })
+                        };
+                    }
+
+                    return {
+                        statusCode: 200,
+                        headers,
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Device blocked successfully',
+                            device: data[0]
+                        })
+                    };
+                } catch (error) {
+                    console.error('Block device error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error blocking device: ' + error.message
                         })
                     };
                 }
