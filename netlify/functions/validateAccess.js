@@ -280,14 +280,14 @@ exports.handler = async (event, context) => {
     // Load main script with appendChild error handling
     async function loadMainScript() {
         try {
-            console.log('🔍 Calling getMainLoaderSimple with:', {
-                url: CONFIG.BACKEND_URL + '/getMainLoaderSimple',
+            console.log('🔍 Calling getMainScript with:', {
+                url: CONFIG.BACKEND_URL + '/getMainScript',
                 username: deviceInfo.username,
                 hwid: deviceInfo.hwid?.substring(0, 20) + '...',
                 fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...'
             });
             
-            const response = await fetch(CONFIG.BACKEND_URL + '/getMainLoaderSimple', {
+            const response = await fetch(CONFIG.BACKEND_URL + '/getMainScript', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

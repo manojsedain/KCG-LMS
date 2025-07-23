@@ -69,15 +69,22 @@ exports.handler = async (event, context) => {
         const { data: accessLogs, error: logsError } = await supabase
             .from('logs')
             .select('created_at, username')
-            .eq('action', 'script_download')
+            .or('action.eq.script_download,action.eq.script_access')
             .order('created_at', { ascending: false })
-            .limit(1);
+            .limit(10);
 
         let lastAccess = null;
-        let totalDownloads = script.downloads || 0;
+        let totalDownloads = 0;
+        let lastAccessUser = null;
 
         if (!logsError && accessLogs && accessLogs.length > 0) {
-            lastAccess = accessLogs[0].created_at;
+            // Count downloads and find last access
+            totalDownloads = accessLogs.filter(log => log.action === 'script_download').length;
+            const lastAccessLog = accessLogs.find(log => log.action === 'script_access' || log.action === 'script_download');
+            if (lastAccessLog) {
+                lastAccess = lastAccessLog.created_at;
+                lastAccessUser = lastAccessLog.username;
+            }
         }
 
         // Check if system is in maintenance mode (you can add this logic)
@@ -99,6 +106,7 @@ exports.handler = async (event, context) => {
                     is_active: script.is_active,
                     downloads: totalDownloads,
                     last_access: lastAccess,
+                    last_access_user: lastAccessUser,
                     maintenance_mode: maintenanceMode,
                     checksum: script.checksum
                 }
