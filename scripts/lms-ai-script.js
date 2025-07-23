@@ -1,9 +1,141 @@
 (function() {
     'use strict';
     
+    // ===== GM COMPATIBILITY LAYER =====
+    // Provide fallbacks for Tampermonkey functions when running in regular browser context
+    if (typeof GM_setValue === 'undefined') {
+        window.GM_setValue = function(key, value) {
+            try {
+                localStorage.setItem('gm_' + key, JSON.stringify(value));
+            } catch (e) {
+                console.warn('[LMS AI] Failed to save to localStorage:', e);
+            }
+        };
+    }
+    
+    if (typeof GM_getValue === 'undefined') {
+        window.GM_getValue = function(key, defaultValue) {
+            try {
+                const stored = localStorage.getItem('gm_' + key);
+                return stored !== null ? JSON.parse(stored) : defaultValue;
+            } catch (e) {
+                console.warn('[LMS AI] Failed to read from localStorage:', e);
+                return defaultValue;
+            }
+        };
+    }
+    
+    if (typeof GM_deleteValue === 'undefined') {
+        window.GM_deleteValue = function(key) {
+            try {
+                localStorage.removeItem('gm_' + key);
+            } catch (e) {
+                console.warn('[LMS AI] Failed to delete from localStorage:', e);
+            }
+        };
+    }
+    
+    if (typeof GM_xmlhttpRequest === 'undefined') {
+        window.GM_xmlhttpRequest = function(options) {
+            const xhr = new XMLHttpRequest();
+            xhr.open(options.method || 'GET', options.url);
+            
+            if (options.headers) {
+                for (const header in options.headers) {
+                    xhr.setRequestHeader(header, options.headers[header]);
+                }
+            }
+            
+            xhr.onload = function() {
+                if (options.onload) {
+                    options.onload({
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        responseHeaders: xhr.getAllResponseHeaders()
+                    });
+                }
+            };
+            
+            xhr.onerror = function() {
+                if (options.onerror) {
+                    options.onerror({
+                        status: xhr.status,
+                        statusText: xhr.statusText
+                    });
+                }
+            };
+            
+            xhr.send(options.data || null);
+        };
+    }
+    
+    if (typeof GM_notification === 'undefined') {
+        window.GM_notification = function(options) {
+            // Fallback to browser notification API or console
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(options.title || 'LMS AI Assistant', {
+                    body: options.text,
+                    icon: options.image
+                });
+            } else {
+                console.log('[LMS AI Notification]', options.title || 'LMS AI Assistant', ':', options.text);
+            }
+        };
+    }
+    
+    if (typeof GM_addStyle === 'undefined') {
+        window.GM_addStyle = function(css) {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+        };
+    }
+    
+    if (typeof GM_setClipboard === 'undefined') {
+        window.GM_setClipboard = function(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).catch(e => {
+                    console.warn('[LMS AI] Failed to copy to clipboard:', e);
+                });
+            } else {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                } catch (e) {
+                    console.warn('[LMS AI] Failed to copy to clipboard:', e);
+                }
+                document.body.removeChild(textarea);
+            }
+        };
+    }
+    
+    if (typeof GM_registerMenuCommand === 'undefined') {
+        window.GM_registerMenuCommand = function(name, callback) {
+            // In regular browser context, we can't add menu commands
+            // Just log for debugging
+            console.log('[LMS AI] Menu command registered:', name);
+        };
+    }
+    
+    if (typeof GM_info === 'undefined') {
+        window.GM_info = {
+            script: {
+                name: 'LMS AI Assistant',
+                version: '8.2.1'
+            }
+        };
+    }
+    
     // Debug initialization
     console.log('[LMS AI] Updated script started loading...');
     console.log('[LMS AI] Current URL:', window.location.href);
+    console.log('[LMS AI] GM compatibility layer initialized');
+    console.log('[LMS AI] Running in context:', typeof GM_setValue !== 'undefined' ? 'Tampermonkey' : 'Browser');
 
     // ===== UPDATED CONFIGURATION =====
     const CONFIG = {
