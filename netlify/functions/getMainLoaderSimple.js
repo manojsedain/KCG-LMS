@@ -57,7 +57,7 @@ exports.handler = async (event, context) => {
     'use strict';
     
     console.log('🎉 LMS AI Assistant Main Script loaded successfully!');
-    console.log('User: ${username}');
+    console.log('User: ` + username + `');
     console.log('Device validated and script delivered');
     
     // Basic LMS AI Assistant functionality
@@ -228,7 +228,7 @@ exports.handler = async (event, context) => {
                 <strong>AI Response:</strong><br><br>
                 Thank you for your question: "\${question}"<br><br>
                 🎯 <strong>LMS AI Assistant is now active!</strong><br>
-                • User: \${username}<br>
+                • User: ` + username + `<br>
                 • Device validated and approved<br>
                 • Full functionality loaded<br><br>
                 <em>Note: This is a demonstration. Full AI capabilities require API configuration in the admin panel.</em>
@@ -246,7 +246,7 @@ exports.handler = async (event, context) => {
                 <strong>Auto Answer Results:</strong><br><br>
                 ✅ LMS AI Assistant is fully operational!<br>
                 🎯 Ready to assist with quiz questions<br>
-                🤖 AI capabilities active for user: \${username}<br><br>
+                🤖 AI capabilities active for user: ` + username + `<br><br>
                 <em>Auto-answer functionality requires quiz content to be present on the page.</em>
             \`;
         }, 1000);
@@ -279,7 +279,7 @@ exports.handler = async (event, context) => {
                         <strong>LMS AI Assistant</strong>
                     </div>
                     <div style="font-size: 12px; opacity: 0.9;">
-                        Successfully loaded for user: \${username}<br>
+                        Successfully loaded for user: ` + username + `<br>
                         Click the AI button to get started!
                     </div>
                 </div>
