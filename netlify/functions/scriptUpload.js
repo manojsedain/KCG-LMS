@@ -95,15 +95,15 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Validate file size (max 5MB)
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        // Validate file size (max 10MB to handle large userscripts)
+        const maxSize = 10 * 1024 * 1024; // 10MB
         if (file.content.length > maxSize) {
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'File too large. Maximum size is 5MB.' 
+                    message: 'File too large. Maximum size is 10MB.' 
                 })
             };
         }
@@ -119,11 +119,11 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Check if script with same name exists
-        const { data: existingScript } = await supabase
-            .from('scripts')
-            .select('id')
-            .eq('name', scriptName)
+        // Check if script with same name already exists
+        const { data: existingScript, error: checkError } = await supabase
+            .from('script_updates')
+            .select('id, version')
+            .eq('created_by', scriptName)
             .single();
 
         let scriptId;
@@ -131,13 +131,13 @@ exports.handler = async (event, context) => {
         if (existingScript) {
             // Update existing script
             const { data: updatedScript, error: updateError } = await supabase
-                .from('scripts')
+                .from('script_updates')
                 .update({
-                    content: scriptContent,
-                    description: scriptDescription,
+                    encrypted_script: Buffer.from(scriptContent).toString('base64'),
+                    update_notes: scriptDescription,
                     version: scriptVersion,
                     file_size: file.content.length,
-                    updated_at: new Date().toISOString()
+                    is_active: true
                 })
                 .eq('id', existingScript.id)
                 .select()
@@ -174,16 +174,15 @@ exports.handler = async (event, context) => {
         } else {
             // Create new script
             const { data: newScript, error: insertError } = await supabase
-                .from('scripts')
+                .from('script_updates')
                 .insert({
-                    name: scriptName,
-                    content: scriptContent,
-                    description: scriptDescription,
                     version: scriptVersion,
-                    file_size: file.content.length,
+                    encrypted_script: Buffer.from(scriptContent).toString('base64'),
+                    update_notes: scriptDescription,
                     is_active: true,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
+                    created_by: scriptName,
+                    file_size: file.content.length,
+                    checksum: require('crypto').createHash('sha256').update(scriptContent).digest('hex')
                 })
                 .select()
                 .single();
