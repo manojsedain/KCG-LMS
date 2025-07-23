@@ -38,18 +38,47 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Load the actual LMS AI Assistant script
-        const fs = require('fs');
-        const path = require('path');
+        // Load the uploaded script from database
+        const { createClient } = require('@supabase/supabase-js');
+        
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_ANON_KEY;
+        const supabase = createClient(supabaseUrl, supabaseKey);
         
         let mainScript;
         try {
-            // Try to read the actual LMS AI script
-            const scriptPath = path.join(__dirname, '../../scripts/lms-ai-script.js');
-            mainScript = fs.readFileSync(scriptPath, 'utf8');
-            console.log('Loaded actual LMS AI script from file system');
+            // Fetch the latest active script from database
+            const { data: scriptData, error: scriptError } = await supabase
+                .from('script_updates')
+                .select('encrypted_script, version, update_notes')
+                .eq('is_active', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+            
+            if (scriptError || !scriptData) {
+                throw new Error(`No active script found in database: ${scriptError?.message || 'No data'}`);
+            }
+            
+            // Decrypt the script if it's encrypted
+            let decryptedScript = scriptData.encrypted_script;
+            
+            // Check if the script is base64 encoded and decode it
+            try {
+                // Try to decode from base64 if it looks encoded
+                if (scriptData.encrypted_script.match(/^[A-Za-z0-9+/]+=*$/)) {
+                    decryptedScript = Buffer.from(scriptData.encrypted_script, 'base64').toString('utf8');
+                }
+            } catch (decodeError) {
+                console.warn('Script decode failed, using as-is:', decodeError.message);
+            }
+            
+            mainScript = decryptedScript;
+            console.log(`Loaded script from database - Version: ${scriptData.version}`);
+            console.log(`Update notes: ${scriptData.update_notes || 'No notes'}`);
+            
         } catch (error) {
-            console.warn('Could not load LMS AI script from file system, using fallback:', error.message);
+            console.warn('Could not load script from database, using fallback:', error.message);
             // Fallback inline script with basic functionality
             mainScript = `
 // LMS AI Assistant Main Script - Fallback Version
