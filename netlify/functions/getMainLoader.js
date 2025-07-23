@@ -230,14 +230,16 @@ function generateMainLoaderScript(device, activeScript) {
                 body: JSON.stringify(deviceData)
             });
             
-            const result = await response.json();
+            const data = await response.json();
             
-            if (!result.success || result.status !== 'approved') {
-                log('Device validation failed: ' + result.message, 'error');
-                showNotification('Device not authorized: ' + result.message, 'error');
+            if (response.ok && data.success && (data.status === 'approved' || data.status === 'active')) {
+                log('Device validation successful', 'info');
+                return true;
+            } else {
+                log('Device validation failed: ' + data.message, 'error');
+                showNotification('Device not authorized: ' + data.message, 'error');
                 return false;
             }
-            
             return true;
         } catch (error) {
             log('Device validation error: ' + error.message, 'error');

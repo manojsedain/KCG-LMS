@@ -278,7 +278,7 @@
             });
             
             if (response.success) {
-                if (response.status === 'approved') {
+                if (response.status === 'approved' || response.status === 'active') {
                     GM_setValue('device_approved', true);
                     GM_setValue('device_id', response.device_id);
                     GM_setValue('expires_at', response.expires_at);
@@ -328,7 +328,7 @@
                 sitePassword: '{{SITE_PASSWORD}}'
             });
             
-            if (response.success && response.status === 'approved') {
+            if (response.success && (response.status === 'approved' || response.status === 'active')) {
                 GM_setValue('device_approved', true);
                 GM_setValue('device_pending', false);
                 GM_setValue('device_id', response.device_id);
