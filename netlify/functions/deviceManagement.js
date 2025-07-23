@@ -345,9 +345,10 @@ exports.handler = async (event, context) => {
                     const { data: updatedDevices, error } = await supabase
                         .from('devices')
                         .update({
-                            status: 'approved',
+                            status: 'active', // Use 'active' instead of 'approved' to match DB constraint
                             approved_at: new Date().toISOString(),
-                            approved_by: 'admin'
+                            approved_by: 'admin',
+                            updated_at: new Date().toISOString()
                         })
                         .eq('status', 'pending')
                         .select();
