@@ -1665,7 +1665,7 @@ function displayDevices(devices, filter = 'all') {
     }
             
     container.innerHTML = filteredDevices.map(device => {
-        const statusClass = device.status === 'approved' ? 'bg-success/20 text-success' :
+        const statusClass = device.status === 'active' ? 'bg-success/20 text-success' :
                            device.status === 'pending' ? 'bg-warning/20 text-warning' :
                            'bg-red-500/20 text-red-500';
         

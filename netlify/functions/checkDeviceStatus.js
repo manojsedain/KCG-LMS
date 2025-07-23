@@ -50,12 +50,31 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Find device by HWID and fingerprint
+        // Process HWID and fingerprint to match registration logic
+        let processedFingerprint = fingerprint;
+        if (fingerprint.length > 800) {
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256');
+            hash.update(fingerprint);
+            processedFingerprint = hash.digest('hex');
+            console.log(`Fingerprint too long (${fingerprint.length} chars), using hash for lookup`);
+        }
+        
+        let processedHwid = hwid;
+        if (hwid.length > 400) {
+            const crypto = require('crypto');
+            const hash = crypto.createHash('sha256');
+            hash.update(hwid);
+            processedHwid = hash.digest('hex');
+            console.log(`HWID too long (${hwid.length} chars), using hash for lookup`);
+        }
+
+        // Find device by processed HWID and fingerprint
         const { data: device, error: deviceError } = await supabase
             .from('devices')
             .select('*')
-            .eq('hwid', hwid)
-            .eq('fingerprint', fingerprint)
+            .eq('hwid', processedHwid)
+            .eq('fingerprint', processedFingerprint)
             .single();
 
         if (deviceError) {
