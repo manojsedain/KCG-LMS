@@ -1667,8 +1667,11 @@ function displayDevices(devices, filter = 'all') {
                            device.status === 'pending' ? 'bg-warning/20 text-warning' :
                            'bg-red-500/20 text-red-500';
         
+        // Safely escape device ID for onclick handlers
+        const deviceId = device.id ? String(device.id).replace(/["'\\]/g, '') : 'unknown';
+        
         const approveButton = device.status === 'pending' ? 
-            `<button onclick="approveDevice(${device.id})" class="bg-success hover:bg-success/80 text-white px-3 py-1 rounded text-sm">
+            `<button onclick="approveDevice('${deviceId}')" class="bg-success hover:bg-success/80 text-white px-3 py-1 rounded text-sm">
                 <i class="fas fa-check mr-1"></i>Approve
             </button>` : '';
         
@@ -1680,8 +1683,8 @@ function displayDevices(devices, filter = 'all') {
                         <i class="fas fa-laptop text-primary"></i>
                     </div>
                     <div>
-                        <h4 class="font-semibold">${device.username || 'Unknown User'}</h4>
-                        <p class="text-sm text-gray-400">${device.device_name || device.hwid || 'Unknown Device'}</p>
+                        <h4 class="font-semibold">${(device.username || 'Unknown User').replace(/[<>"'&]/g, '')}</h4>
+                        <p class="text-sm text-gray-400">${(device.device_name || device.hwid || 'Unknown Device').replace(/[<>"'&]/g, '')}</p>
                         <p class="text-xs text-gray-500">Status: ${device.status}</p>
                     </div>
                 </div>
@@ -1690,17 +1693,17 @@ function displayDevices(devices, filter = 'all') {
                         ${device.status.charAt(0).toUpperCase() + device.status.slice(1)}
                     </span>
                     ${approveButton}
-                    <button onclick="deleteDevice(${device.id})" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
+                    <button onclick="deleteDevice('${deviceId}')" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm">
                         <i class="fas fa-trash mr-1"></i>Delete
                     </button>
-                    <button onclick="blockDevice(${device.id})" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
+                    <button onclick="blockDevice('${deviceId}')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm">
                         <i class="fas fa-ban mr-1"></i>Block
                     </button>
                 </div>
             </div>
             <div class="mt-3 text-xs text-gray-400">
-                <p>Last Active: ${new Date(device.created_at).toLocaleString()}</p>
-                <p class="truncate">HWID: ${device.hwid || 'N/A'}</p>
+                <p>Last Active: ${device.created_at ? new Date(device.created_at).toLocaleString() : 'Unknown'}</p>
+                <p class="truncate">HWID: ${(device.hwid || 'N/A').replace(/[<>"'&]/g, '')}</p>
             </div>
         </div>
         `;
