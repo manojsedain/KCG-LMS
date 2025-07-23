@@ -1753,7 +1753,24 @@ async function approveDevice(deviceId) {
         
         if (result.success) {
             showToast('Device approved successfully!', 'success');
-            loadDevices(); // Reload devices
+            
+            // Switch to approved tab to show the newly approved device
+            const approvedTab = document.querySelector('[data-filter="approved"]');
+            if (approvedTab) {
+                // Update tab appearance
+                document.querySelectorAll('.device-filter-tab').forEach(tab => {
+                    tab.classList.remove('active', 'bg-primary/20', 'text-primary');
+                    tab.classList.add('bg-white/5', 'hover:bg-white/10');
+                });
+                approvedTab.classList.add('active', 'bg-primary/20', 'text-primary');
+                approvedTab.classList.remove('bg-white/5', 'hover:bg-white/10');
+                
+                // Load approved devices
+                loadDevices('approved');
+            } else {
+                // Fallback: reload all devices
+                loadDevices();
+            }
         } else {
             showToast(result.message || 'Failed to approve device', 'error');
         }

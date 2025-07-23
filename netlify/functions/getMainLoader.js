@@ -272,9 +272,29 @@ function generateMainLoaderScript(device, activeScript) {
         }
     }
     
+    // Load CryptoJS library
+    function loadCryptoJS() {
+        return new Promise((resolve, reject) => {
+            if (typeof CryptoJS !== 'undefined') {
+                resolve();
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load CryptoJS'));
+            document.head.appendChild(script);
+        });
+    }
+    
     // Decrypt and execute script
     async function loadAndExecuteScript() {
         try {
+            // Load CryptoJS first
+            await loadCryptoJS();
+            log('CryptoJS loaded successfully', 'info');
+            
             // Get decryption key
             const key = await getDecryptionKey();
             
