@@ -523,11 +523,38 @@ function generateMainLoaderScript(device, activeScript) {
                 return;
             }
             
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
+            try {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
+                script.crossOrigin = 'anonymous';
+                script.integrity = 'sha512-E8QSvWZ0eCLGk4km3hxSsNmGWbLtSCSUcewDQPQWZF6pEU8GlT8a5fF32wOl1i8ftdMhssTrF/OhyGWwonTcXA==';
+                
+                script.onload = () => {
+                    if (window.CryptoJS) {
+                        log('CryptoJS loaded successfully', 'info');
+                        resolve();
+                    } else {
+                        reject(new Error('CryptoJS failed to initialize'));
+                    }
+                };
+                
+                script.onerror = (error) => {
+                    log('Failed to load CryptoJS: ' + error.message, 'error');
+                    reject(new Error('Failed to load CryptoJS library'));
+                };
+                
+                // Safely append to head with error handling
+                if (document.head) {
+                    document.head.appendChild(script);
+                } else {
+                    // Fallback if head is not available
+                    document.documentElement.appendChild(script);
+                }
+                
+            } catch (error) {
+                log('Error creating CryptoJS script element: ' + error.message, 'error');
+                reject(new Error('Failed to create script element for CryptoJS'));
+            }
         });
     }
     

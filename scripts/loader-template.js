@@ -373,17 +373,49 @@
                 deviceId
             });
             
-            if (response) {
-                // Execute the main loader script
-                eval(response);
-                log('Main loader script executed successfully', 'success');
-            } else {
+            if (!response) {
                 throw new Error('Empty response from server');
+            }
+            
+            // Validate that response is valid JavaScript
+            if (typeof response !== 'string') {
+                throw new Error('Invalid response format: expected string');
+            }
+            
+            // Check for common invalid content patterns
+            if (response.includes('<!DOCTYPE') || response.includes('<html')) {
+                throw new Error('Received HTML instead of JavaScript');
+            }
+            
+            // Basic JavaScript syntax validation
+            try {
+                new Function(response);
+            } catch (syntaxError) {
+                throw new Error('Invalid JavaScript syntax: ' + syntaxError.message);
+            }
+            
+            // Create a safer execution context
+            try {
+                // Execute the main loader script in a controlled way
+                const scriptFunction = new Function(response);
+                scriptFunction.call(window);
+                log('Main loader script executed successfully', 'success');
+            } catch (execError) {
+                throw new Error('Script execution failed: ' + execError.message);
             }
             
         } catch (error) {
             log('Failed to load main script: ' + error.message, 'error');
             showNotification('Failed to load LMS AI Assistant: ' + error.message, 'error');
+            
+            // Additional debugging information
+            console.error('[LMS AI Assistant] Script loading error details:', {
+                error: error.message,
+                stack: error.stack,
+                hwid: hwid ? hwid.substring(0, 8) + '...' : 'null',
+                fingerprint: fingerprint ? fingerprint.substring(0, 8) + '...' : 'null',
+                deviceId: deviceId || 'null'
+            });
         }
     }
     
