@@ -1003,7 +1003,7 @@
                     // Store session
                     const session = {
                         token: result.token,
-                        expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+                        expiry: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
                     };
                     localStorage.setItem('adminSession', JSON.stringify(session));
                     
@@ -1143,7 +1143,7 @@
             const ctx = document.getElementById('deviceChart').getContext('2d');
             
             // Destroy existing chart if it exists
-            if (window.deviceChart) {
+            if (window.deviceChart && typeof window.deviceChart.destroy === 'function') {
                 window.deviceChart.destroy();
             }
             
@@ -1540,8 +1540,18 @@
             try {
                 const session = JSON.parse(localStorage.getItem('adminSession'));
                 if (!session || !session.token) {
+                    console.error('No admin session found or token missing');
                     throw new Error('No valid admin session found');
                 }
+                
+                // Check if session has expired
+                if (session.expiry && session.expiry < Date.now()) {
+                    console.error('Admin session has expired');
+                    localStorage.removeItem('adminSession');
+                    throw new Error('Session expired');
+                }
+                
+                console.log('Using admin token:', session.token.substring(0, 20) + '...');
                 
                 const search = document.getElementById('deviceSearch')?.value || '';
                 const sort = document.getElementById('deviceSort')?.value || 'created_desc';
