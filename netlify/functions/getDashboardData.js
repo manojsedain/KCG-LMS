@@ -34,24 +34,26 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Verify JWT token
-        const authHeader = event.headers.authorization || event.headers.Authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Parse request body to get token (consistent with other admin functions)
+        const requestBody = JSON.parse(event.body || '{}');
+        const { token } = requestBody;
+        
+        if (!token) {
             return {
                 statusCode: 401,
                 headers,
-                body: JSON.stringify({ success: false, message: 'Missing or invalid authorization header' })
+                body: JSON.stringify({ success: false, message: 'Missing token in request body' })
             };
         }
 
-        const token = authHeader.substring(7);
+        // Verify JWT token
         try {
             jwt.verify(token, JWT_SECRET);
         } catch (jwtError) {
             return {
                 statusCode: 401,
                 headers,
-                body: JSON.stringify({ success: false, message: 'Invalid token' })
+                body: JSON.stringify({ success: false, message: 'Invalid or expired token' })
             };
         }
 

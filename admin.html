@@ -1109,10 +1109,12 @@
                     return;
                 }
                 
+                console.log('Using admin token:', session.token.substring(0, 20) + '...');
+                
                 const response = await fetch('/.netlify/functions/getDashboardData', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ token: session.token })
                 });
