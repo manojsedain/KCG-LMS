@@ -110,11 +110,14 @@ exports.handler = async (event, context) => {
         const deviceValidationScript = `// ==UserScript==
 // @name         LMS AI Assistant - Device Validator
 // @namespace    https://wrongnumber.netlify.app/
-// @version      8.2.2
+// @version      8.2.3
 // @description  Device validation and registration for LMS AI Assistant (appendChild fix applied)
 // @author       LMS AI Assistant
 // @match        https://king-lms.kcg.edu/ultra/*
-// @grant        none
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 (function() {
