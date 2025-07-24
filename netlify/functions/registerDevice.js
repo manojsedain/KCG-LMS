@@ -190,12 +190,14 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Check if device already exists using processed values
+        // Check if device already exists (using hwid, fingerprint, AND username for uniqueness)
+        // This prevents the same device from being registered multiple times for the same user
         const { data: existingDevice, error: checkError } = await supabase
             .from('devices')
-            .select('*')
+            .select('id, username, status, usage_count, user_id')
             .eq('hwid', processedHwid)
             .eq('fingerprint', processedFingerprint)
+            .eq('username', username)
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned

@@ -93,13 +93,125 @@ exports.handler = async (event, context) => {
             };
         }
 
+        // Check if user is admin or has paid for access
+        const { data: adminSettings } = await supabase
+            .from('payment_settings')
+            .select('setting_value')
+            .eq('setting_key', 'admin_usernames')
+            .single();
+        
+        const adminUsernames = (adminSettings?.setting_value || 'admin,ADMIN').split(',').map(u => u.trim());
+        const isAdmin = adminUsernames.includes(username);
+        
+        if (!isAdmin) {
+            // Check if user has valid payment
+            const { data: userPayment } = await supabase
+                .from('payments')
+                .select('id, payment_status, subscription_type, expires_at')
+                .eq('username', username)
+                .eq('payment_status', 'completed')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+            
+            if (!userPayment) {
+                // No payment found - return payment required script
+                const paymentRequiredScript = `// ==UserScript==
+// @name         LMS AI Assistant - Payment Required
+// @namespace    https://wrongnumber.netlify.app/
+// @version      1.0.0
+// @description  Payment required to access LMS AI Assistant
+// @author       Developer
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    
+    // Show payment required toast
+    function showPaymentToast() {
+        const toast = document.createElement('div');
+        toast.style.cssText = \`
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            max-width: 350px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        \`;
+        
+        toast.innerHTML = \`
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-size: 18px;">🔒</div>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Payment Required</div>
+                    <div style="font-size: 12px; opacity: 0.9;">Click here to purchase LMS AI Assistant access</div>
+                </div>
+            </div>
+        \`;
+        
+        toast.addEventListener('click', () => {
+            window.open('https://wrongnumber.netlify.app/#payment', '_blank');
+        });
+        
+        toast.addEventListener('mouseenter', () => {
+            toast.style.transform = 'scale(1.05)';
+        });
+        
+        toast.addEventListener('mouseleave', () => {
+            toast.style.transform = 'scale(1)';
+        });
+        
+        document.body.appendChild(toast);
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 10000);
+    }
+    
+    // Show toast when page loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', showPaymentToast);
+    } else {
+        showPaymentToast();
+    }
+})();`;
+                
+                return {
+                    statusCode: 200,
+                    headers: {
+                        ...headers,
+                        'Content-Disposition': 'attachment; filename="lms-payment-required.user.js"',
+                        'Content-Type': 'application/javascript'
+                    },
+                    body: paymentRequiredScript
+                };
+            }
+        }
+        
         // Log successful access
         await supabase.from('logs').insert({
             log_type: 'info',
             level: 'info',
-            message: 'Successful script download',
+            message: isAdmin ? 'Admin script download' : 'Paid user script download',
             details: { 
                 username,
+                is_admin: isAdmin,
+                payment_id: userPayment?.id || null,
                 ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
             },
             ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
