@@ -293,6 +293,59 @@ exports.handler = async (event, context) => {
                     })
                 };
 
+            case 'updateAlternativePayments':
+                const { altPayments } = actionData;
+                
+                // Save alternative payment methods as settings
+                const altPaymentPromises = Object.entries(altPayments).map(([key, value]) => {
+                    return supabase
+                        .from('payment_settings')
+                        .upsert({
+                            setting_key: `alt_payment_${key}`,
+                            setting_value: value,
+                            updated_at: new Date().toISOString()
+                        }, {
+                            onConflict: 'setting_key'
+                        });
+                });
+
+                const altPaymentResults = await Promise.all(altPaymentPromises);
+                const altPaymentErrors = altPaymentResults.filter(result => result.error);
+
+                if (altPaymentErrors.length > 0) {
+                    console.error('Error updating alternative payments:', altPaymentErrors);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error updating alternative payment methods'
+                        })
+                    };
+                }
+
+                // Log the update
+                await supabase.from('logs').insert({
+                    log_type: 'admin',
+                    level: 'info',
+                    message: 'Alternative payment methods updated',
+                    details: { 
+                        updated_methods: Object.keys(altPayments).filter(key => altPayments[key]),
+                        admin_user: sessionCheck.payload.username
+                    },
+                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                    user_agent: event.headers['user-agent']
+                });
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        message: 'Alternative payment methods saved successfully'
+                    })
+                };
+
             case 'testNotification':
                 const { email, type } = actionData;
                 

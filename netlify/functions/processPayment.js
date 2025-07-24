@@ -19,9 +19,13 @@ const headers = {
     'Content-Type': 'application/json'
 };
 
-// Get PayPal access token
-async function getPayPalAccessToken() {
-    const baseURL = CONFIG.PAYPAL_ENVIRONMENT === 'live' 
+// Get PayPal access token with custom credentials
+async function getPayPalAccessToken(clientId = null, clientSecret = null, environment = null) {
+    const paypalClientId = clientId || CONFIG.PAYPAL_CLIENT_ID;
+    const paypalClientSecret = clientSecret || CONFIG.PAYPAL_CLIENT_SECRET;
+    const paypalEnvironment = environment || CONFIG.PAYPAL_ENVIRONMENT;
+    
+    const baseURL = paypalEnvironment === 'live' 
         ? 'https://api.paypal.com' 
         : 'https://api.sandbox.paypal.com';
     
@@ -30,13 +34,17 @@ async function getPayPalAccessToken() {
         headers: {
             'Accept': 'application/json',
             'Accept-Language': 'en_US',
-            'Authorization': `Basic ${Buffer.from(`${CONFIG.PAYPAL_CLIENT_ID}:${CONFIG.PAYPAL_CLIENT_SECRET}`).toString('base64')}`,
+            'Authorization': `Basic ${Buffer.from(`${paypalClientId}:${paypalClientSecret}`).toString('base64')}`,
             'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: 'grant_type=client_credentials'
     });
     
     const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error_description || data.error || 'Failed to get access token');
+    }
+    
     return data.access_token;
 }
 
@@ -286,6 +294,59 @@ exports.handler = async (event, context) => {
                         message: 'Payment verification failed'
                     })
                 };
+
+            case 'testConnection':
+                const { clientId, clientSecret, environment } = actionData;
+                
+                if (!clientId || !clientSecret) {
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Client ID and Client Secret are required'
+                        })
+                    };
+                }
+                
+                try {
+                    // Test the PayPal connection
+                    const testAccessToken = await getPayPalAccessToken(clientId, clientSecret, environment);
+                    
+                    if (testAccessToken) {
+                        return {
+                            statusCode: 200,
+                            headers,
+                            body: JSON.stringify({
+                                success: true,
+                                message: `PayPal connection successful (${environment} environment)`,
+                                environment: environment,
+                                connected: true
+                            })
+                        };
+                    } else {
+                        return {
+                            statusCode: 400,
+                            headers,
+                            body: JSON.stringify({
+                                success: false,
+                                message: 'Failed to obtain access token',
+                                connected: false
+                            })
+                        };
+                    }
+                } catch (error) {
+                    console.error('PayPal connection test error:', error);
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'PayPal connection failed: ' + error.message,
+                            connected: false
+                        })
+                    };
+                }
 
             default:
                 return {
