@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS payment_settings (
     description TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
-);
+); 
 
 -- Insert default payment settings
 INSERT INTO payment_settings (setting_key, setting_value, description) VALUES
