@@ -988,10 +988,9 @@ Now, please respond to the following questions strictly in accordance with the g
             this.tokensProcessed = 0;
             this.init();
             
-            this.licenseCheckInterval = setInterval(() => {
-                this.licenseManager.checkLicense();
-                this.updateSettingsButtonVisibility();
-            }, CONFIG.LICENSE.CHECK_INTERVAL);
+            // Check license once on initialization instead of repeated intervals
+            this.licenseManager.checkLicense();
+            this.updateSettingsButtonVisibility();
         }
 
         init() {

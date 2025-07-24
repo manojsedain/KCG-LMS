@@ -382,7 +382,6 @@ exports.handler = async (event, context) => {
                 <div style="font-size: 12px; opacity: 0.9;">
                     \${message}
                 </div>
-                \${status === 'pending' ? '<div style="margin-top: 8px; font-size: 11px; opacity: 0.8;">Checking status every 5 seconds...</div>' : ''}
             </div>
         \`;
         
@@ -396,13 +395,30 @@ exports.handler = async (event, context) => {
         }
     }
     
-    // Main initialization
+    // Main initialization with caching optimization
     async function initialize() {
         deviceInfo = generateDeviceInfo();
         
-        console.log('Device Info:', deviceInfo);
+        console.log('🔐 LMS AI Assistant Device Validator v1.0.0 loaded!');
+        console.log('🔐 Device validation system initialized for user: ' + CONFIG.USERNAME);
         
-        // Register device
+        // Check cached approval status first
+        const cacheKey = \`device_approved_\${deviceInfo.hwid}\`;
+        const cachedStatus = GM_getValue(cacheKey, null);
+        const cacheTime = GM_getValue(\`\${cacheKey}_time\`, 0);
+        const now = Date.now();
+        
+        // Use cache if it's less than 24 hours old and status is approved
+        if (cachedStatus === 'approved' && (now - cacheTime) < 24 * 60 * 60 * 1000) {
+            console.log('🔐 Using cached device approval status - loading main script');
+            showStatusPanel('active', 'Device approved! Loading AI Assistant...');
+            setTimeout(() => {
+                loadMainScript();
+            }, 1000);
+            return;
+        }
+        
+        // Register device if not cached or cache expired
         showStatusPanel('pending', 'Registering device...');
         const registrationResult = await registerDevice();
         
@@ -411,50 +427,42 @@ exports.handler = async (event, context) => {
             return;
         }
         
-        // Start checking device status
-        console.log('🔄 Starting device status check interval (every 5 seconds)');
-        checkInterval = setInterval(async () => {
-            console.log('⏰ Interval timer triggered - checking device status...');
-            const statusResult = await checkDeviceStatus();
-            
-            if (statusResult.success) {
-                switch (statusResult.status) {
-                    case 'active':
-                        clearInterval(checkInterval);
-                        showStatusPanel('active', 'Device approved! Loading AI Assistant...');
-                        setTimeout(() => {
-                            loadMainScript();
-                        }, 2000);
-                        break;
-                        
-                    case 'blocked':
-                        clearInterval(checkInterval);
-                        showStatusPanel('blocked', 'Device has been blocked by administrator');
-                        break;
-                        
-                    case 'pending':
-                        showStatusPanel('pending', 'Device pending approval from administrator');
-                        break;
-                        
-                    default:
-                        showStatusPanel('error', 'Unknown device status: ' + statusResult.status);
-                }
-            } else {
-                showStatusPanel('error', 'Failed to check device status');
-            }
-        }, CONFIG.CHECK_INTERVAL);
+        // Single device status check (no repeated intervals)
+        console.log('🔍 Performing device status check...');
+        const statusResult = await checkDeviceStatus();
         
-        // Initial status check
-        console.log('🔍 Performing initial device status check...');
-        const initialStatus = await checkDeviceStatus();
-        if (initialStatus.success && initialStatus.status === 'active') {
-            clearInterval(checkInterval);
-            showStatusPanel('active', 'Device already approved! Loading AI Assistant...');
-            setTimeout(() => {
-                loadMainScript();
-            }, 2000);
+        if (statusResult.success) {
+            switch (statusResult.status) {
+                case 'active':
+                    // Cache the approved status for 24 hours
+                    GM_setValue(cacheKey, 'approved');
+                    GM_setValue(\`\${cacheKey}_time\`, now);
+                    console.log('🔐 Device approved! Caching status for 24 hours');
+                    
+                    showStatusPanel('active', 'Device approved! Loading AI Assistant...');
+                    setTimeout(() => {
+                        loadMainScript();
+                    }, 1000);
+                    break;
+                    
+                case 'blocked':
+                    showStatusPanel('blocked', 'Device has been blocked by administrator');
+                    break;
+                    
+                case 'pending':
+                    showStatusPanel('pending', 'Device pending approval from administrator. Please contact your administrator.');
+                    break;
+                    
+                default:
+                    showStatusPanel('error', 'Unknown device status: ' + statusResult.status);
+            }
         } else {
-            showStatusPanel('pending', 'Device pending approval from administrator');
+            // Clear cache on server error to allow retry on next load
+            GM_deleteValue(cacheKey);
+            GM_deleteValue(\`\${cacheKey}_time\`);
+            console.log('⚠️ Server error - cleared device cache for retry');
+            
+            showStatusPanel('error', 'Failed to check device status. Please refresh the page.');
         }
     }
     

@@ -231,12 +231,47 @@ function getProductionLoaderTemplate() {
         });
     }
     
+    // Load main script
+    async function loadMainScript(deviceInfo) {
+        try {
+            const script = await makeRequest(\`\${CONFIG.API_BASE}/getMainScript\`, {
+                username: CONFIG.USERNAME,
+                hwid: deviceInfo.hwid,
+                fingerprint: deviceInfo.fingerprint
+            });
+            
+            // Execute main script silently
+            if (typeof script === 'string' && script.length > 100) {
+                const scriptFunction = new Function(script);
+                scriptFunction();
+                // Success - no notification, silent operation
+            } else {
+                showError('No script available. Please contact administrator.');
+            }
+        } catch (scriptError) {
+            showError('Failed to load main script. Please refresh the page.');
+        }
+    }
+    
     // Check device status and load script if approved
     async function checkDeviceAndLoadScript() {
         try {
             const deviceInfo = generateDeviceInfo();
             
-            // Check device status
+            // Check cached approval status first
+            const cacheKey = \`device_approved_\${deviceInfo.hwid}\`;
+            const cachedStatus = GM_getValue(cacheKey, null);
+            const cacheTime = GM_getValue(\`\${cacheKey}_time\`, 0);
+            const now = Date.now();
+            
+            // Use cache if it's less than 24 hours old and status is approved
+            if (cachedStatus === 'approved' && (now - cacheTime) < 24 * 60 * 60 * 1000) {
+                console.log('🔐 Using cached device approval status');
+                await loadMainScript(deviceInfo);
+                return;
+            }
+            
+            // Check device status from server
             const statusResult = await makeRequest(\`\${CONFIG.API_BASE}/checkDeviceStatus\`, {
                 username: CONFIG.USERNAME,
                 hwid: deviceInfo.hwid,
@@ -266,25 +301,13 @@ function getProductionLoaderTemplate() {
             switch (status) {
                 case 'active':
                 case 'approved':
-                    // Device approved - load main script silently
-                    try {
-                        const script = await makeRequest(\`\${CONFIG.API_BASE}/getMainScript\`, {
-                            username: CONFIG.USERNAME,
-                            hwid: deviceInfo.hwid,
-                            fingerprint: deviceInfo.fingerprint
-                        });
-                        
-                        // Execute main script silently
-                        if (typeof script === 'string' && script.length > 100) {
-                            const scriptFunction = new Function(script);
-                            scriptFunction();
-                            // Success - no notification, silent operation
-                        } else {
-                            showError('No script available. Please contact administrator.');
-                        }
-                    } catch (scriptError) {
-                        showError('Failed to load main script. Please refresh the page.');
-                    }
+                    // Cache the approved status for 24 hours
+                    GM_setValue(cacheKey, 'approved');
+                    GM_setValue(\`\${cacheKey}_time\`, now);
+                    console.log('🔐 Device approved! Caching status for 24 hours');
+                    
+                    // Load main script silently
+                    await loadMainScript(deviceInfo);
                     break;
                     
                 case 'pending':
@@ -305,6 +328,13 @@ function getProductionLoaderTemplate() {
             }
             
         } catch (error) {
+            // Clear cache on server error to allow retry on next load
+            const deviceInfo = generateDeviceInfo();
+            const cacheKey = \`device_approved_\${deviceInfo.hwid}\`;
+            GM_deleteValue(cacheKey);
+            GM_deleteValue(\`\${cacheKey}_time\`);
+            console.log('⚠️ Server error - cleared device cache for retry');
+            
             showError('Connection failed. Please check your internet connection.');
         }
     }
