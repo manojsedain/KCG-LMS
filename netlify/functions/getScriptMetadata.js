@@ -55,12 +55,28 @@ exports.handler = async (event, context) => {
             .single();
 
         if (error || !script) {
+            // Provide fallback metadata when no script is found in database
+            console.log('No active script found in database, providing fallback metadata');
             return {
-                statusCode: 404,
+                statusCode: 200,
                 headers,
                 body: JSON.stringify({
-                    success: false,
-                    message: 'No active script found'
+                    success: true,
+                    script: {
+                        id: 'default',
+                        version: '1.0.0',
+                        update_notes: 'LMS AI Assistant - Smart Learning Solutions. Upload a script through the admin panel to customize version information.',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        created_by: 'System',
+                        file_size: 0,
+                        is_active: true,
+                        downloads: 0,
+                        last_access: null,
+                        last_access_user: null,
+                        maintenance_mode: false,
+                        checksum: null
+                    }
                 })
             };
         }

@@ -402,8 +402,7 @@ exports.handler = async (event, context) => {
     async function initialize() {
         deviceInfo = generateDeviceInfo();
         
-        console.log('🔐 LMS AI Assistant Device Validator v1.0.0 loaded!');
-        console.log('🔐 Device validation system initialized for user: ' + CONFIG.USERNAME);
+
         
         // Check cached approval status first
         const cacheKey = \`device_approved_\${deviceInfo.hwid}\`;
@@ -413,16 +412,12 @@ exports.handler = async (event, context) => {
         
         // Use cache if it's less than 24 hours old and status is approved
         if (cachedStatus === 'approved' && (now - cacheTime) < 24 * 60 * 60 * 1000) {
-            console.log('🔐 Using cached device approval status - loading main script');
-            showStatusPanel('active', 'Device approved! Loading AI Assistant...');
-            setTimeout(() => {
-                loadMainScript();
-            }, 1000);
+
+            loadMainScript();
             return;
         }
         
         // Register device if not cached or cache expired
-        showStatusPanel('pending', 'Registering device...');
         const registrationResult = await registerDevice();
         
         if (!registrationResult.success) {
@@ -431,7 +426,6 @@ exports.handler = async (event, context) => {
         }
         
         // Single device status check (no repeated intervals)
-        console.log('🔍 Performing device status check...');
         const statusResult = await checkDeviceStatus();
         
         if (statusResult.success) {
@@ -440,12 +434,9 @@ exports.handler = async (event, context) => {
                     // Cache the approved status for 24 hours
                     GM_setValue(cacheKey, 'approved');
                     GM_setValue(\`\${cacheKey}_time\`, now);
-                    console.log('🔐 Device approved! Caching status for 24 hours');
+
                     
-                    showStatusPanel('active', 'Device approved! Loading AI Assistant...');
-                    setTimeout(() => {
-                        loadMainScript();
-                    }, 1000);
+                    loadMainScript();
                     break;
                     
                 case 'blocked':
@@ -475,8 +466,6 @@ exports.handler = async (event, context) => {
     } else {
         initialize();
     }
-    
-    console.log('🔐 Device validation system initialized for user: ' + CONFIG.USERNAME);
 })();`;
 
         return {
