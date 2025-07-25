@@ -20,10 +20,35 @@ const headers = {
 };
 
 // Get PayPal access token with custom credentials
-async function getPayPalAccessToken(clientId = null, clientSecret = null, environment = null) {
-    const paypalClientId = clientId || CONFIG.PAYPAL_CLIENT_ID;
-    const paypalClientSecret = clientSecret || CONFIG.PAYPAL_CLIENT_SECRET;
-    const paypalEnvironment = environment || CONFIG.PAYPAL_ENVIRONMENT;
+async function getPayPalAccessToken(clientId = null, clientSecret = null, environment = null, supabase = null) {
+    let paypalClientId = clientId;
+    let paypalClientSecret = clientSecret;
+    let paypalEnvironment = environment;
+    
+    // If credentials not provided, get from database
+    if (!paypalClientId || !paypalClientSecret) {
+        if (!supabase) {
+            throw new Error('Supabase client required to fetch PayPal credentials');
+        }
+        
+        const { data: settings } = await supabase
+            .from('payment_settings')
+            .select('setting_key, setting_value')
+            .in('setting_key', ['paypal_client_id', 'paypal_client_secret', 'paypal_environment']);
+        
+        const settingsMap = {};
+        settings?.forEach(setting => {
+            settingsMap[setting.setting_key] = setting.setting_value;
+        });
+        
+        paypalClientId = paypalClientId || settingsMap.paypal_client_id;
+        paypalClientSecret = paypalClientSecret || settingsMap.paypal_client_secret;
+        paypalEnvironment = paypalEnvironment || settingsMap.paypal_environment || 'sandbox';
+    }
+    
+    if (!paypalClientId || !paypalClientSecret) {
+        throw new Error('PayPal credentials not configured. Please set up PayPal in admin panel.');
+    }
     
     const baseURL = paypalEnvironment === 'live' 
         ? 'https://api.paypal.com' 
@@ -49,8 +74,8 @@ async function getPayPalAccessToken(clientId = null, clientSecret = null, enviro
 }
 
 // Verify PayPal payment
-async function verifyPayPalPayment(paymentId, accessToken) {
-    const baseURL = CONFIG.PAYPAL_ENVIRONMENT === 'live' 
+async function verifyPayPalPayment(paymentId, accessToken, environment = 'sandbox') {
+    const baseURL = environment === 'live' 
         ? 'https://api.paypal.com' 
         : 'https://api.sandbox.paypal.com';
     
@@ -168,8 +193,17 @@ exports.handler = async (event, context) => {
                 const currentPricing = await getCurrentPricing(supabase);
                 
                 // Create PayPal payment
-                const accessToken = await getPayPalAccessToken();
-                const baseURL = CONFIG.PAYPAL_ENVIRONMENT === 'live' 
+                const accessToken = await getPayPalAccessToken(null, null, null, supabase);
+                
+                // Get PayPal environment from database
+                const { data: envSetting } = await supabase
+                    .from('payment_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'paypal_environment')
+                    .single();
+                
+                const paypalEnvironment = envSetting?.setting_value || 'sandbox';
+                const baseURL = paypalEnvironment === 'live' 
                     ? 'https://api.paypal.com' 
                     : 'https://api.sandbox.paypal.com';
                 
@@ -231,8 +265,17 @@ exports.handler = async (event, context) => {
                 const { paymentId, payerId } = actionData;
                 
                 // Get access token and verify payment
-                const verifyAccessToken = await getPayPalAccessToken();
-                const paymentDetails = await verifyPayPalPayment(paymentId, verifyAccessToken);
+                const verifyAccessToken = await getPayPalAccessToken(null, null, null, supabase);
+                
+                // Get PayPal environment for verification
+                const { data: verifyEnvSetting } = await supabase
+                    .from('payment_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'paypal_environment')
+                    .single();
+                
+                const verifyEnvironment = verifyEnvSetting?.setting_value || 'sandbox';
+                const paymentDetails = await verifyPayPalPayment(paymentId, verifyAccessToken, verifyEnvironment);
                 
                 if (paymentDetails.status === 'APPROVED' || paymentDetails.status === 'COMPLETED') {
                     // Update payment record
