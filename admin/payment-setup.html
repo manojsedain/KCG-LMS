@@ -408,10 +408,31 @@
     </main>
 
     <script>
-        // Authentication check
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            window.location.href = 'login.html';
+        // Authentication check - use adminSession from main admin panel
+        let token = null;
+        const adminSession = localStorage.getItem('adminSession');
+        if (adminSession) {
+            try {
+                const sessionData = JSON.parse(adminSession);
+                const now = Date.now();
+                const sessionExpiry = sessionData.expires || sessionData.expiry;
+                
+                if (sessionData.token && sessionExpiry > now) {
+                    token = sessionData.token;
+                } else {
+                    // Session expired, redirect back to admin panel
+                    alert('Session expired. Please log in to the admin panel again.');
+                    window.location.href = '../admin.html';
+                }
+            } catch (error) {
+                console.error('Session validation error:', error);
+                alert('Invalid session. Please log in to the admin panel again.');
+                window.location.href = '../admin.html';
+            }
+        } else {
+            // No session found, redirect back to admin panel
+            alert('Please access this page through the admin panel.');
+            window.location.href = '../admin.html';
         }
 
         // Toast notification function
