@@ -124,15 +124,7 @@
                     <a href="#dashboard" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors active bg-white/20">
                         <i class="fas fa-tachometer-alt w-5"></i>
                         <span>Dashboard</span>
-                    </a>
-                    <a href="#script-management" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
-                        <i class="fas fa-code w-5"></i>
-                        <span>Script Management</span>
-                        <a href="admin/payment-setup.html" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
-                            <i class="fas fa-credit-card w-5"></i>
-                            <span>Payment & Notifications</span>
-                        </a>
-                    </a>
+
                     <a href="#system-settings" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors">
                         <i class="fas fa-cogs w-5"></i>
                         <span>System Settings</span>
@@ -2087,11 +2079,53 @@ function initLogsManagement() {
                 showToast('Failed to clear logs', 'error');
             }
         }
-        
         // ===== NOTIFICATIONS FUNCTIONS =====
+
+// Initialize notification tabs
+function initNotificationTabs() {
+    const notificationsTab = document.getElementById('notificationsTab');
+    const paymentTab = document.getElementById('paymentTab');
+
+    if (notificationsTab && paymentTab) {
+        notificationsTab.addEventListener('click', () => switchNotificationTab('notifications'));
+        paymentTab.addEventListener('click', () => switchNotificationTab('payment'));
+    }
+}
+
+function switchNotificationTab(tab) {
+    const notificationsTab = document.getElementById('notificationsTab');
+    const paymentTab = document.getElementById('paymentTab');
+    const notificationsContent = document.getElementById('notificationsContent');
+    const paymentContent = document.getElementById('paymentContent');
+
+    // Reset all tabs
+    document.querySelectorAll('.notification-tab').forEach(t => {
+        t.classList.remove('active', 'text-primary', 'border-primary');
+        t.classList.add('text-gray-400', 'border-transparent');
+    });
+
+    // Hide all content
+    document.querySelectorAll('.tab-content').forEach(c => {
+        c.classList.add('hidden');
+    });
+
+    // Show selected tab and content
+    if (tab === 'notifications') {
+        notificationsTab.classList.add('active', 'text-primary', 'border-primary');
+        notificationsTab.classList.remove('text-gray-400', 'border-transparent');
+        notificationsContent.classList.remove('hidden');
+    } else if (tab === 'payment') {
+        paymentTab.classList.add('active', 'text-primary', 'border-primary');
+        paymentTab.classList.remove('text-gray-400', 'border-transparent');
+        paymentContent.classList.remove('hidden');
+    }
+}
         
         function initNotifications() {
-            // Email configuration
+    // Initialize notification tabs
+    initNotificationTabs();
+    
+    // Email configuration
             document.getElementById('testEmailBtn')?.addEventListener('click', testEmail);
             document.getElementById('saveEmailConfigBtn')?.addEventListener('click', saveEmailConfig);
             
