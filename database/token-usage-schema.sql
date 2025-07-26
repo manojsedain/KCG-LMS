@@ -13,7 +13,6 @@ CREATE TABLE IF NOT EXISTS token_usage (
     prompt_text TEXT,
     response_text TEXT,
     session_id VARCHAR(255),
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -31,7 +30,7 @@ CREATE TABLE IF NOT EXISTS token_usage_summary (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_token_usage_email ON token_usage(email);
-CREATE INDEX IF NOT EXISTS idx_token_usage_timestamp ON token_usage(timestamp);
+CREATE INDEX IF NOT EXISTS idx_token_usage_created_at ON token_usage(created_at);
 CREATE INDEX IF NOT EXISTS idx_token_usage_provider ON token_usage(provider);
 CREATE INDEX IF NOT EXISTS idx_token_usage_feature ON token_usage(feature_type);
 CREATE INDEX IF NOT EXISTS idx_token_usage_session ON token_usage(session_id);
@@ -71,9 +70,9 @@ BEGIN
         SUM(tu.tokens_used) as total_tokens,
         COUNT(tu.id) as total_requests,
         ROUND(AVG(tu.tokens_used), 2) as avg_tokens_per_request,
-        MAX(tu.timestamp) as last_used
+        MAX(tu.created_at) as last_used
     FROM token_usage tu
-    WHERE tu.timestamp >= time_filter
+    WHERE tu.created_at >= time_filter
     GROUP BY tu.email
     ORDER BY total_tokens DESC
     LIMIT limit_count;
@@ -90,7 +89,7 @@ RETURNS TABLE (
     tokens_used INTEGER,
     provider VARCHAR,
     feature_type VARCHAR,
-    timestamp TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE,
     session_id VARCHAR
 ) AS $$
 BEGIN
@@ -100,11 +99,11 @@ BEGIN
         tu.tokens_used,
         tu.provider,
         tu.feature_type,
-        tu.timestamp,
+        tu.created_at,
         tu.session_id
     FROM token_usage tu
     WHERE tu.email = user_email
-    ORDER BY tu.timestamp DESC
+    ORDER BY tu.created_at DESC
     LIMIT limit_count;
 END;
 $$ LANGUAGE plpgsql;
@@ -142,7 +141,7 @@ BEGIN
             period_start_val := time_filter;
         ELSE 
             time_filter := '1900-01-01'::TIMESTAMP WITH TIME ZONE;
-            period_start_val := (SELECT MIN(timestamp) FROM token_usage);
+            period_start_val := (SELECT MIN(created_at) FROM token_usage);
     END CASE;
     
     RETURN QUERY
@@ -153,12 +152,12 @@ BEGIN
         COUNT(tu.id) as total_requests,
         COUNT(DISTINCT tu.email) as unique_users,
         ROUND(AVG(tu.tokens_used), 2) as avg_tokens_per_user,
-        (SELECT tu2.provider FROM token_usage tu2 WHERE tu2.timestamp >= time_filter 
+        (SELECT tu2.provider FROM token_usage tu2 WHERE tu2.created_at >= time_filter 
          GROUP BY tu2.provider ORDER BY SUM(tu2.tokens_used) DESC LIMIT 1) as top_provider,
-        (SELECT tu3.feature_type FROM token_usage tu3 WHERE tu3.timestamp >= time_filter 
+        (SELECT tu3.feature_type FROM token_usage tu3 WHERE tu3.created_at >= time_filter 
          GROUP BY tu3.feature_type ORDER BY SUM(tu3.tokens_used) DESC LIMIT 1) as top_feature
     FROM token_usage tu
-    WHERE tu.timestamp >= time_filter;
+    WHERE tu.created_at >= time_filter;
 END;
 $$ LANGUAGE plpgsql;
 

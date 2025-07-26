@@ -87,9 +87,8 @@ exports.handler = async (event, context) => {
                 feature_type: feature,
                 prompt_text: prompt ? prompt.substring(0, 1000) : null, // Limit prompt length
                 response_text: response ? response.substring(0, 2000) : null, // Limit response length
-                session_id: sessionId || null,
-                timestamp: timestamp ? new Date(timestamp).toISOString() : new Date().toISOString(),
-                created_at: new Date().toISOString()
+                session_id: sessionId || null
+                // created_at will be set automatically by DEFAULT NOW()
             })
             .select()
             .single();
