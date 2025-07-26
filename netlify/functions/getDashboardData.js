@@ -57,26 +57,24 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Get device statistics (using username temporarily until schema is updated)
+        // Get device statistics using email column (with username fallback)
         const { data: devices, error: devicesError } = await supabase
             .from('devices')
-            .select('id, status, created_at, username');
-
+            .select('id, email, username, status, created_at, last_used')
+            .order('created_at', { ascending: false });
+        
         if (devicesError) {
-            console.error('Devices query error:', devicesError);
-            // Don't throw error, return fallback data instead
-            console.log('Using fallback device data due to query error');
+            console.error('Error fetching devices:', devicesError);
         }
-
-        // Calculate device statistics with fallback values
-        const totalDevices = devices?.length || 0;
-        const activeDevices = devices?.filter(d => d.status === 'active').length || 0;
-        const pendingRequests = devices?.filter(d => d.status === 'pending').length || 0;
-        const blockedDevices = devices?.filter(d => d.status === 'blocked').length || 0;
-        const expiredDevices = devices?.filter(d => d.status === 'expired').length || 0;
-
-        // Get unique users count (using username temporarily)
-        const uniqueUsers = devices ? [...new Set(devices.map(d => d.username))].length : 0;
+        
+        // Calculate device stats with error handling
+        const totalDevices = devices ? devices.length : 0;
+        const activeDevices = devices ? devices.filter(d => d.status === 'active' || d.status === 'approved').length : 0;
+        const pendingDeviceCount = devices ? devices.filter(d => d.status === 'pending').length : 0;
+        const expiredDevices = devices ? devices.filter(d => d.status === 'expired' || d.status === 'blocked').length : 0;
+        
+        // Get unique users count (prefer email, fallback to username)
+        const uniqueUsers = devices ? new Set(devices.map(d => d.email || d.username).filter(Boolean)).size : 0;
 
         // Get recent logs
         const { data: recentLogs, error: logsError } = await supabase
@@ -134,38 +132,20 @@ exports.handler = async (event, context) => {
                 stats: {
                     totalDevices,
                     activeDevices,
-                    pendingRequests,
-                    blockedDevices,
+                    pendingDevices: pendingDeviceCount,
                     expiredDevices,
                     totalUsers: uniqueUsers
                 },
                 recentLogs: recentLogs || [],
-                pendingRequests: pendingDevices || [],
+                pendingRequests: devices ? devices.filter(d => d.status === 'pending') : [],
                 activeScript: activeScript || null,
-                recentDevices: devices.slice(-5).reverse(),
+                recentDevices: devices ? devices.slice(-5).reverse() : [],
                 settings: {
                     maintenance_mode: settings.maintenance_mode === 'true',
                     auto_approve_devices: settings.auto_approve_devices === 'true',
                     max_devices_per_user: parseInt(settings.max_devices_per_user) || 3,
                     device_expiry_days: parseInt(settings.device_expiry_days) || 30,
                     email_notifications: settings.email_notifications === 'true'
-                },
-                analytics: {
-                    usageByDay: {},
-                    statusDistribution: {
-                        active: activeDevices,
-                        pending: pendingRequests,
-                        blocked: blockedDevices,
-                        expired: expiredDevices
-                    },
-                    topUsers: []
-                },
-                systemHealth: {
-                    status: 'healthy',
-                    uptime: process.uptime(),
-                    memoryUsage: process.memoryUsage(),
-                    lastScriptUpdate: activeScript?.created_at || new Date().toISOString(),
-                    maintenanceMode: settings.maintenance_mode === 'true'
                 }
             }
         };
