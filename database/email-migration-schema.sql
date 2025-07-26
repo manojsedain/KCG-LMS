@@ -110,6 +110,17 @@ CREATE TABLE IF NOT EXISTS payments_new (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Payment settings table (for payment configuration)
+CREATE TABLE IF NOT EXISTS payment_settings (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    setting_key VARCHAR(255) UNIQUE NOT NULL,
+    setting_value TEXT,
+    setting_type VARCHAR(50) DEFAULT 'string' CHECK (setting_type IN ('string', 'number', 'boolean', 'json')),
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Contact messages table (for index page chat)
 CREATE TABLE IF NOT EXISTS contact_messages (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

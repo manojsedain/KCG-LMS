@@ -123,7 +123,7 @@ exports.handler = async (event, context) => {
         const usageByFeature = {};
         let totalTokens = 0;
 
-        tokenUsage.forEach(record => {
+        tokenLogs.forEach(record => {
             const date = record.created_at.split('T')[0]; // Get date part only
             const email = record.user_email;
             const feature = record.feature_type || 'general';
@@ -203,7 +203,7 @@ exports.handler = async (event, context) => {
                         featureUsage: featureUsageChart,
                         topUsers
                     },
-                    raw: tokenUsage
+                    raw: tokenLogs
                 }
             })
         };

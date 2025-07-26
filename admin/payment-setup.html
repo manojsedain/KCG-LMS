@@ -811,11 +811,18 @@
             button.disabled = true;
             
             try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                if (!session?.token) {
+                    showToast('Admin session expired', 'error');
+                    return;
+                }
+                
                 const response = await fetch('/.netlify/functions/processPayment', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         action: 'testConnection',
+                        token: session.token,
                         clientId: clientId,
                         clientSecret: clientSecret,
                         environment: environment
@@ -964,6 +971,91 @@
                 console.error('Load payments error:', error);
                 showToast('Failed to load payment history', 'error');
             }
+        }
+        
+        // Display payments in the UI
+        function displayPayments(payments) {
+            const paymentsContainer = document.getElementById('paymentsContainer');
+            if (!paymentsContainer) {
+                console.error('Payments container not found');
+                return;
+            }
+            
+            if (!payments || payments.length === 0) {
+                paymentsContainer.innerHTML = '<div class="text-gray-400 text-center py-8">No payment records found</div>';
+                return;
+            }
+            
+            const paymentsHTML = payments.map(payment => {
+                const statusColor = payment.payment_status === 'completed' ? 'text-green-400' : 
+                                  payment.payment_status === 'failed' ? 'text-red-400' : 'text-yellow-400';
+                const methodIcon = payment.payment_method === 'paypal' ? '💳' : '📄';
+                
+                return `
+                    <div class="bg-white/10 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg">${methodIcon}</span>
+                                <div>
+                                    <div class="font-semibold text-white">${payment.email}</div>
+                                    <div class="text-sm text-gray-400">$${payment.amount} USD</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="${statusColor} font-semibold capitalize">${payment.payment_status}</div>
+                                <div class="text-sm text-gray-400">${new Date(payment.created_at).toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                        ${payment.paypal_transaction_id ? `<div class="text-xs text-gray-500 mt-2">Transaction: ${payment.paypal_transaction_id}</div>` : ''}
+                        ${payment.admin_notes ? `<div class="text-xs text-blue-300 mt-2">Notes: ${payment.admin_notes}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            paymentsContainer.innerHTML = paymentsHTML;
+        }
+        
+        // Display notifications in the UI
+        function displayNotifications(notifications) {
+            const notificationsContainer = document.getElementById('notificationsContainer');
+            if (!notificationsContainer) {
+                console.error('Notifications container not found');
+                return;
+            }
+            
+            if (!notifications || notifications.length === 0) {
+                notificationsContainer.innerHTML = '<div class="text-gray-400 text-center py-8">No notification logs found</div>';
+                return;
+            }
+            
+            const notificationsHTML = notifications.map(notification => {
+                const statusColor = notification.status === 'sent' ? 'text-green-400' : 
+                                  notification.status === 'failed' ? 'text-red-400' : 'text-yellow-400';
+                const typeIcon = notification.notification_type === 'payment' ? '💰' : 
+                               notification.notification_type === 'device' ? '📱' : '📧';
+                
+                return `
+                    <div class="bg-white/10 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg">${typeIcon}</span>
+                                <div>
+                                    <div class="font-semibold text-white">${notification.recipient_email}</div>
+                                    <div class="text-sm text-gray-400">${notification.subject || 'No subject'}</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="${statusColor} font-semibold capitalize">${notification.status}</div>
+                                <div class="text-sm text-gray-400">${new Date(notification.created_at).toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                        ${notification.error_message ? `<div class="text-xs text-red-300 mt-2">Error: ${notification.error_message}</div>` : ''}
+                        ${notification.message ? `<div class="text-xs text-gray-300 mt-2 max-w-md truncate">${notification.message}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            notificationsContainer.innerHTML = notificationsHTML;
         }
         
         // Load notification logs
