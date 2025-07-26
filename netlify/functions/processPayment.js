@@ -166,18 +166,18 @@ exports.handler = async (event, context) => {
                 };
 
             case 'createPayment':
-                const { username, email, deviceHwid } = actionData;
+                const { email, deviceHwid } = actionData;
                 
                 // Check if user is admin (free access)
                 const { data: adminSettings } = await supabase
                     .from('payment_settings')
                     .select('setting_value')
-                    .eq('setting_key', 'admin_usernames')
+                    .eq('setting_key', 'admin_emails')
                     .single();
                 
-                const adminUsernames = (adminSettings?.setting_value || 'admin,ADMIN').split(',').map(u => u.trim());
+                const adminEmails = (adminSettings?.setting_value || 'manojsedain40@gmail.com').split(',').map(e => e.trim());
                 
-                if (adminUsernames.includes(username)) {
+                if (adminEmails.includes(email)) {
                     return {
                         statusCode: 200,
                         headers,
@@ -237,7 +237,6 @@ exports.handler = async (event, context) => {
                 if (paymentResult.id) {
                     // Store payment record
                     await supabase.from('payments').insert({
-                        username,
                         email,
                         amount: currentPricing.price,
                         paypal_payment_id: paymentResult.id,
@@ -293,7 +292,7 @@ exports.handler = async (event, context) => {
                     if (payment) {
                         // Update device payment status
                         await supabase
-                            .from('devices')
+                            .from('devices_new')
                             .update({
                                 payment_id: payment.id,
                                 payment_status: 'paid',
@@ -311,8 +310,8 @@ exports.handler = async (event, context) => {
                         if (devEmail?.setting_value) {
                             await sendNotificationEmail(supabase, 'payment_success', {
                                 email: devEmail.setting_value,
-                                subject: 'New Payment Received - Device Approval Required',
-                                message: `Payment received from ${payment.username} (${payment.email}) for $${payment.amount}. Device HWID: ${payment.device_hwid}. Please approve the device for access.`,
+                                subject: 'New Payment Received - Device Approved',
+                                message: `Payment received from ${payment.email} for $${payment.amount}. Device HWID: ${payment.device_hwid}. Device has been automatically approved for access.`,
                                 payment_id: payment.id
                             });
                         }

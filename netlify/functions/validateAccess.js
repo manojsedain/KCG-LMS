@@ -32,16 +32,29 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const { username, sitePassword } = JSON.parse(event.body);
+        const { email, sitePassword } = JSON.parse(event.body);
 
         // Validate required fields
-        if (!username || !sitePassword) {
+        if (!email || !sitePassword) {
             return {
                 statusCode: 400,
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Username and site password are required' 
+                    message: 'Email and site password are required' 
+                })
+            };
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return {
+                statusCode: 400,
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Please enter a valid email address' 
                 })
             };
         }
@@ -51,7 +64,7 @@ exports.handler = async (event, context) => {
 
         // Get site password from database
         const { data: settingData, error: settingError } = await supabase
-            .from('admin_settings')
+            .from('payment_settings')
             .select('setting_value')
             .eq('setting_key', 'site_password')
             .single();
@@ -71,14 +84,15 @@ exports.handler = async (event, context) => {
         // Validate site password
         if (sitePassword !== settingData.setting_value) {
             // Log failed attempt
-            await supabase.from('logs').insert({
+            await supabase.from('logs_new').insert({
                 log_type: 'security',
                 level: 'warn',
                 message: 'Failed site password attempt',
                 details: { 
-                    username, 
+                    email, 
                     ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'] 
                 },
+                user_email: email,
                 ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
                 user_agent: event.headers['user-agent']
             });
@@ -97,18 +111,18 @@ exports.handler = async (event, context) => {
         const { data: adminSettings } = await supabase
             .from('payment_settings')
             .select('setting_value')
-            .eq('setting_key', 'admin_usernames')
+            .eq('setting_key', 'admin_emails')
             .single();
         
-        const adminUsernames = (adminSettings?.setting_value || 'admin,ADMIN').split(',').map(u => u.trim());
-        const isAdmin = adminUsernames.includes(username);
+        const adminEmails = (adminSettings?.setting_value || 'manojsedain40@gmail.com').split(',').map(e => e.trim());
+        const isAdmin = adminEmails.includes(email);
         
         if (!isAdmin) {
             // Check if user has valid payment
             const { data: userPayment } = await supabase
                 .from('payments')
                 .select('id, payment_status, subscription_type, expires_at')
-                .eq('username', username)
+                .eq('email', email)
                 .eq('payment_status', 'completed')
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -204,16 +218,17 @@ exports.handler = async (event, context) => {
         }
         
         // Log successful access
-        await supabase.from('logs').insert({
+        await supabase.from('logs_new').insert({
             log_type: 'info',
             level: 'info',
             message: isAdmin ? 'Admin script download' : 'Paid user script download',
             details: { 
-                username,
+                email,
                 is_admin: isAdmin,
                 payment_id: userPayment?.id || null,
                 ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip']
             },
+            user_email: email,
             ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
             user_agent: event.headers['user-agent']
         });
@@ -238,9 +253,8 @@ exports.handler = async (event, context) => {
     console.log('🔐 LMS AI Assistant Device Validator v1.0.0 loaded!');
     
     const CONFIG = {
-        USERNAME: '${username}',
-        BACKEND_URL: '${event.headers.origin || 'https://wrongnumber.netlify.app'}/.netlify/functions',
-        CHECK_INTERVAL: 5000 // Check device status every 5 seconds
+        EMAIL: '${email}',
+        BACKEND_URL: '${event.headers.origin || 'https://wrongnumber.netlify.app'}/.netlify/functions'
     };
     
     let deviceInfo = null;
@@ -274,7 +288,7 @@ exports.handler = async (event, context) => {
         const hwid = btoa(navigator.userAgent + navigator.platform + screen.width + screen.height);
         
         return {
-            username: CONFIG.USERNAME,
+            email: CONFIG.EMAIL,
             hwid: hwid,
             fingerprint: fingerprint,
             deviceName: getBrowserName() + ' on ' + getOSName(),
