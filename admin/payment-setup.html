@@ -413,20 +413,20 @@
                 if (data.success) {
                     const settings = data.settings;
                     
-                    // Populate form fields
-                    document.getElementById('paypalClientId').value = settings.paypalClientId || '';
-                    document.getElementById('paypalClientSecret').value = settings.paypalClientSecret || '';
-                    document.getElementById('paypalEnvironment').value = settings.paypalEnvironment || 'sandbox';
-                    document.getElementById('paymentEnabled').checked = settings.paymentEnabled === 'true';
-                    document.getElementById('discountPrice').value = settings.discountPrice || '36.00';
-                    document.getElementById('lifetimePrice').value = settings.lifetimePrice || '68.00';
-                    document.getElementById('discountEndDate').value = settings.discountEndDate || '2025-08-31';
-                    document.getElementById('adminUsernames').value = settings.adminUsernames || 'admin,ADMIN';
-                    document.getElementById('developerEmail').value = settings.developerEmail || '';
-                    document.getElementById('notificationEmail').value = settings.notificationEmail || '';
+                    // Populate form fields - use backend field names
+                    document.getElementById('paypalClientId').value = settings.paypal_client_id || '';
+                    document.getElementById('paypalClientSecret').value = settings.paypal_client_secret || '';
+                    document.getElementById('paypalEnvironment').value = settings.paypal_environment || 'sandbox';
+                    document.getElementById('paymentEnabled').checked = settings.payment_enabled === 'true';
+                    document.getElementById('discountPrice').value = settings.discount_price || '36.00';
+                    document.getElementById('lifetimePrice').value = settings.lifetime_price || '68.00';
+                    document.getElementById('discountEndDate').value = settings.discount_end_date || '2025-08-31';
+                    document.getElementById('adminUsernames').value = settings.admin_usernames || 'admin,ADMIN';
+                    document.getElementById('developerEmail').value = settings.developer_email || '';
+                    document.getElementById('notificationEmail').value = settings.notification_email || '';
                     
                     // Hide setup guide if PayPal is already configured
-                    const paypalConfigured = settings.paypalClientId && settings.paypalClientSecret;
+                    const paypalConfigured = settings.paypal_client_id && settings.paypal_client_secret;
                     const setupGuide = document.getElementById('paypalSetupGuide');
                     if (paypalConfigured && setupGuide) {
                         setupGuide.style.display = 'none';
