@@ -1370,8 +1370,8 @@
                 if (data.success && data.dashboard) {
                     updateDashboardStats(data.dashboard.stats);
                     updateRecentActivity(data.dashboard.recentLogs);
-                    // Load user token usage table (with throttling)
-            setTimeout(() => loadUserTokenUsage(), 1000);
+                    // Load user token usage table (ONCE per page load to prevent lag)
+                    loadUserTokenUsage();
                 } else {
                     console.error('Dashboard data error:', data.message);
                     showToast(data.message || 'Failed to load dashboard data', 'error');
@@ -3499,9 +3499,16 @@ function switchNotificationTab(tab) {
             loadUserTokenUsage();
         }
         
-        // Load and display user token usage in a simple table
+        // Load and display user token usage in a simple table (ONCE per page load)
+        let tokenUsageLoaded = false;
         async function loadUserTokenUsage() {
             const container = document.getElementById('userTokenTable');
+            
+            // Only load once per page session to prevent performance issues
+            if (tokenUsageLoaded) {
+                console.log('Token usage already loaded, skipping to prevent lag');
+                return;
+            }
             
             try {
                 const session = JSON.parse(localStorage.getItem('adminSession'));
@@ -3549,6 +3556,7 @@ function switchNotificationTab(tab) {
                     `).join('');
                     
                     container.innerHTML = html;
+                    tokenUsageLoaded = true; // Mark as loaded to prevent repeated calls
                 } else {
                     container.innerHTML = `
                         <div class="text-center py-8 text-gray-400">

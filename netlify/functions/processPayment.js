@@ -437,6 +437,86 @@ exports.handler = async (event, context) => {
                     };
                 }
 
+            case 'executePayment':
+                const { token: paymentToken, PayerID } = actionData;
+                
+                if (!paymentToken || !PayerID) {
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Payment token and PayerID are required'
+                        })
+                    };
+                }
+                
+                try {
+                    // Get PayPal access token
+                    const accessToken = await getPayPalAccessToken(null, null, null, supabase);
+                    
+                    // Execute the payment
+                    const executeResponse = await fetch(`https://api-m.${CONFIG.PAYPAL_ENVIRONMENT === 'live' ? '' : 'sandbox.'}paypal.com/v1/payments/payment/${paymentToken}/execute`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            payer_id: PayerID
+                        })
+                    });
+                    
+                    const executeResult = await executeResponse.json();
+                    
+                    if (executeResult.state === 'approved') {
+                        // Payment successful - approve device
+                        const customId = executeResult.transactions[0]?.custom;
+                        if (customId) {
+                            const [userEmail, deviceHwid] = customId.split('_');
+                            
+                            // Update device status to approved
+                            const { error: updateError } = await supabase
+                                .from('devices')
+                                .update({ status: 'approved' })
+                                .eq('email', userEmail)
+                                .eq('hwid', deviceHwid);
+                            
+                            if (!updateError) {
+                                return {
+                                    statusCode: 200,
+                                    headers,
+                                    body: JSON.stringify({
+                                        success: true,
+                                        message: 'Payment completed and device approved successfully',
+                                        paymentId: executeResult.id
+                                    })
+                                };
+                            }
+                        }
+                    }
+                    
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Payment execution failed or was not approved'
+                        })
+                    };
+                    
+                } catch (error) {
+                    console.error('Payment execution error:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Payment execution error: ' + error.message
+                        })
+                    };
+                }
+
             default:
                 return {
                     statusCode: 400,
