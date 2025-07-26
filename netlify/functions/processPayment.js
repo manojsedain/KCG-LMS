@@ -250,8 +250,8 @@ exports.handler = async (event, context) => {
                         custom_id: `${email}_${deviceHwid}_${Date.now()}`
                     }],
                     application_context: {
-                        return_url: `${event.headers.origin || 'https://wrongnumber.netlify.app'}/payment-success`,
-                        cancel_url: `${event.headers.origin || 'https://wrongnumber.netlify.app'}/payment-cancel`
+                        return_url: `${event.headers.origin || 'https://kcg-lms.netlify.app'}/payment-success`,
+                        cancel_url: `${event.headers.origin || 'https://kcg-lms.netlify.app'}/payment-cancel`
                     }
                 };
                 

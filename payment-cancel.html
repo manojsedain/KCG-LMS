@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Cancelled - LMS AI Assistant</title>
+    <link rel="stylesheet" href="/dist/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #581c87 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', sans-serif;
+        }
+        .cancel-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        .cancel-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="cancel-container">
+        <div class="cancel-icon">
+            <i class="fas fa-times text-white text-3xl"></i>
+        </div>
+        
+        <h1 class="text-3xl font-bold text-white mb-4">Payment Cancelled</h1>
+        <p class="text-gray-300 mb-6">Your payment has been cancelled. No charges have been made to your account.</p>
+        
+        <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4 mb-6">
+            <p class="text-yellow-400 font-medium">⚠️ Payment Required</p>
+            <p class="text-gray-300 text-sm mt-2">You need to complete payment to access the LMS AI Assistant.</p>
+        </div>
+        
+        <div class="space-y-3">
+            <a href="/index.html#payment" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                Try Payment Again
+            </a>
+            <a href="/index.html" class="block w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                Return to Home
+            </a>
+        </div>
+    </div>
+</body>
+</html>
