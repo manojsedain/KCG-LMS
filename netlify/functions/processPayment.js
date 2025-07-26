@@ -31,19 +31,35 @@ async function getPayPalAccessToken(clientId = null, clientSecret = null, enviro
             throw new Error('Supabase client required to fetch PayPal credentials');
         }
         
-        const { data: settings } = await supabase
-            .from('payment_settings')
-            .select('setting_key, setting_value')
-            .in('setting_key', ['paypal_client_id', 'paypal_client_secret', 'paypal_environment']);
-        
-        const settingsMap = {};
-        settings?.forEach(setting => {
-            settingsMap[setting.setting_key] = setting.setting_value;
-        });
-        
-        paypalClientId = paypalClientId || settingsMap.paypal_client_id;
-        paypalClientSecret = paypalClientSecret || settingsMap.paypal_client_secret;
-        paypalEnvironment = paypalEnvironment || settingsMap.paypal_environment || 'sandbox';
+        try {
+            const { data: settings, error: settingsError } = await supabase
+                .from('payment_settings')
+                .select('setting_key, setting_value')
+                .in('setting_key', ['paypal_client_id', 'paypal_client_secret', 'paypal_environment']);
+            
+            if (settingsError) {
+                console.error('Error fetching PayPal settings:', settingsError);
+                // Fallback to environment variables if database fails
+                paypalClientId = paypalClientId || process.env.PAYPAL_CLIENT_ID;
+                paypalClientSecret = paypalClientSecret || process.env.PAYPAL_CLIENT_SECRET;
+                paypalEnvironment = paypalEnvironment || process.env.PAYPAL_ENVIRONMENT || 'sandbox';
+            } else {
+                const settingsMap = {};
+                settings?.forEach(setting => {
+                    settingsMap[setting.setting_key] = setting.setting_value;
+                });
+                
+                paypalClientId = paypalClientId || settingsMap.paypal_client_id || process.env.PAYPAL_CLIENT_ID;
+                paypalClientSecret = paypalClientSecret || settingsMap.paypal_client_secret || process.env.PAYPAL_CLIENT_SECRET;
+                paypalEnvironment = paypalEnvironment || settingsMap.paypal_environment || process.env.PAYPAL_ENVIRONMENT || 'sandbox';
+            }
+        } catch (dbError) {
+            console.error('Database error fetching PayPal settings:', dbError);
+            // Fallback to environment variables
+            paypalClientId = paypalClientId || process.env.PAYPAL_CLIENT_ID;
+            paypalClientSecret = paypalClientSecret || process.env.PAYPAL_CLIENT_SECRET;
+            paypalEnvironment = paypalEnvironment || process.env.PAYPAL_ENVIRONMENT || 'sandbox';
+        }
     }
     
     if (!paypalClientId || !paypalClientSecret) {
@@ -169,13 +185,21 @@ exports.handler = async (event, context) => {
                 const { email, deviceHwid } = actionData;
                 
                 // Check if user is admin (free access)
-                const { data: adminSettings } = await supabase
-                    .from('payment_settings')
-                    .select('setting_value')
-                    .eq('setting_key', 'admin_emails')
-                    .single();
+                let adminEmails = ['manojsedain40@gmail.com']; // Default admin email
                 
-                const adminEmails = (adminSettings?.setting_value || 'manojsedain40@gmail.com').split(',').map(e => e.trim());
+                try {
+                    const { data: adminSettings, error: adminError } = await supabase
+                        .from('payment_settings')
+                        .select('setting_value')
+                        .eq('setting_key', 'admin_emails')
+                        .single();
+                    
+                    if (!adminError && adminSettings?.setting_value) {
+                        adminEmails = adminSettings.setting_value.split(',').map(e => e.trim());
+                    }
+                } catch (error) {
+                    console.error('Error fetching admin emails, using default:', error);
+                }
                 
                 if (adminEmails.includes(email)) {
                     return {
@@ -196,13 +220,21 @@ exports.handler = async (event, context) => {
                 const accessToken = await getPayPalAccessToken(null, null, null, supabase);
                 
                 // Get PayPal environment from database
-                const { data: envSetting } = await supabase
-                    .from('payment_settings')
-                    .select('setting_value')
-                    .eq('setting_key', 'paypal_environment')
-                    .single();
+                let paypalEnvironment = 'sandbox'; // Default to sandbox
                 
-                const paypalEnvironment = envSetting?.setting_value || 'sandbox';
+                try {
+                    const { data: envSetting, error: envError } = await supabase
+                        .from('payment_settings')
+                        .select('setting_value')
+                        .eq('setting_key', 'paypal_environment')
+                        .single();
+                    
+                    if (!envError && envSetting?.setting_value) {
+                        paypalEnvironment = envSetting.setting_value;
+                    }
+                } catch (error) {
+                    console.error('Error fetching PayPal environment, using sandbox:', error);
+                }
                 const baseURL = paypalEnvironment === 'live' 
                     ? 'https://api.paypal.com' 
                     : 'https://api.sandbox.paypal.com';
