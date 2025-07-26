@@ -29,19 +29,38 @@ WHERE devices.username = u.username AND devices.email IS NULL;
 -- Step 6: Make email not null in devices table
 ALTER TABLE devices ALTER COLUMN email SET NOT NULL;
 
--- Step 7: Drop the old username column from devices table and update foreign key
-ALTER TABLE devices DROP CONSTRAINT IF EXISTS devices_username_fkey;
-ALTER TABLE devices DROP COLUMN IF EXISTS username;
+-- Step 7: Drop RLS policies that depend on username column
+DROP POLICY IF EXISTS "Users can view their own devices" ON devices;
+DROP POLICY IF EXISTS "Users can insert their own devices" ON devices;
+DROP POLICY IF EXISTS "Users can update their own devices" ON devices;
+DROP POLICY IF EXISTS "Service role can access devices" ON devices;
 
--- Step 8: Add foreign key constraint for email
+-- Step 8: Drop the old username column from devices table and update foreign key
+ALTER TABLE devices DROP CONSTRAINT IF EXISTS devices_username_fkey;
+ALTER TABLE devices DROP COLUMN IF EXISTS username CASCADE;
+
+-- Step 9: Add foreign key constraint for email
 ALTER TABLE devices ADD CONSTRAINT devices_email_fkey 
     FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE;
 
--- Step 9: Update indexes for devices table
+-- Step 10: Update indexes for devices table
 DROP INDEX IF EXISTS idx_devices_username;
 CREATE INDEX IF NOT EXISTS idx_devices_email ON devices(email);
 
--- Step 10: Update device_requests table if it exists
+-- Step 11: Recreate RLS policies using email instead of username
+CREATE POLICY "Users can view their own devices" ON devices 
+    FOR SELECT USING (email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users can insert their own devices" ON devices 
+    FOR INSERT WITH CHECK (email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Users can update their own devices" ON devices 
+    FOR UPDATE USING (email = auth.jwt() ->> 'email');
+
+CREATE POLICY "Service role can access devices" ON devices 
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Step 12: Update device_requests table if it exists
 -- First check if device_requests table exists and has the structure we expect
 DO $$
 BEGIN
@@ -67,7 +86,7 @@ BEGIN
     END IF;
 END $$;
 
--- Step 11: Update payment_schema.sql references
+-- Step 13: Update payment_schema.sql references
 -- Update payments table to use email instead of username
 DO $$
 BEGIN
@@ -98,12 +117,12 @@ BEGIN
     END IF;
 END $$;
 
--- Step 12: Update admin_settings for admin usernames to admin emails
+-- Step 14: Update admin_settings for admin usernames to admin emails
 UPDATE admin_settings 
 SET setting_value = REPLACE(REPLACE(setting_value, 'admin,ADMIN', 'admin@example.com,ADMIN@example.com'), 'admin', 'admin@example.com')
 WHERE setting_key = 'admin_usernames' AND setting_value NOT LIKE '%@%';
 
--- Step 13: Clean up old username column from users table (optional - keep for reference)
+-- Step 15: Clean up old username column from users table (optional - keep for reference)
 -- ALTER TABLE users DROP COLUMN username;
 
 -- Verification queries (run these to check the migration)

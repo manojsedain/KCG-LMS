@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const CONFIG = {
     SUPABASE_URL: process.env.SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    JWT_SECRET: process.env.JWT_SECRET || 'your-jwt-secret-key'
+    JWT_SECRET: process.env.JWT_SECRET || 'V+3stApVGE9zLpJFf79RA4SAc/w2vqJygx5wQ2hW/OlGLN/rhEPFHV1tRR+zcO2APsrvMwy+IO6IgN7+jSghTw=='
 };
 
 // CORS headers
