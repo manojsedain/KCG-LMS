@@ -1328,7 +1328,22 @@
             showToast('Logged out successfully', 'info');
         }
 
+        // Throttle dashboard loading to prevent memory leak
+        let dashboardLoadInProgress = false;
+        let lastDashboardLoad = 0;
+        const DASHBOARD_THROTTLE_MS = 5000; // 5 seconds minimum between loads
+        
         async function loadDashboardData() {
+            // Prevent repeated calls
+            const now = Date.now();
+            if (dashboardLoadInProgress || (now - lastDashboardLoad) < DASHBOARD_THROTTLE_MS) {
+                console.log('Dashboard load throttled - too many requests');
+                return;
+            }
+            
+            dashboardLoadInProgress = true;
+            lastDashboardLoad = now;
+            
             try {
                 // Get admin session token
                 const savedSession = localStorage.getItem('adminSession');
@@ -1368,6 +1383,8 @@
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showToast('Failed to load dashboard data', 'error');
+            } finally {
+                dashboardLoadInProgress = false;
             }
         }
 
