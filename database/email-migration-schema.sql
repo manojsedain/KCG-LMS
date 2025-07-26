@@ -78,6 +78,38 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Notification logs table (new version for email-based functions)
+CREATE TABLE IF NOT EXISTS notification_logs_new (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    notification_type VARCHAR(50) NOT NULL,
+    recipient_email VARCHAR(255) NOT NULL,
+    subject VARCHAR(500),
+    message TEXT,
+    payment_id UUID REFERENCES payments(id) ON DELETE SET NULL,
+    device_id UUID REFERENCES devices_new(id) ON DELETE SET NULL,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+    sent_at TIMESTAMP WITH TIME ZONE,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Payments table (new version for email-based functions)
+CREATE TABLE IF NOT EXISTS payments_new (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    paypal_payment_id VARCHAR(255),
+    paypal_transaction_id VARCHAR(255),
+    payment_status VARCHAR(50) DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded')),
+    subscription_type VARCHAR(50) DEFAULT 'discount' CHECK (subscription_type IN ('discount', 'lifetime')),
+    device_hwid VARCHAR(255),
+    payment_proof_image TEXT, -- Base64 encoded image for manual payments
+    payment_method VARCHAR(50) DEFAULT 'paypal' CHECK (payment_method IN ('paypal', 'manual')),
+    admin_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Contact messages table (for index page chat)
 CREATE TABLE IF NOT EXISTS contact_messages (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -89,6 +121,25 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     replied_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Contact messages table (new version for email-based functions)
+CREATE TABLE IF NOT EXISTS contact_messages_new (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    sender_email VARCHAR(255) NOT NULL,
+    sender_name VARCHAR(255),
+    subject VARCHAR(255),
+    message TEXT NOT NULL,
+    newsletter_signup BOOLEAN DEFAULT false,
+    status VARCHAR(50) DEFAULT 'unread' CHECK (status IN ('unread', 'read', 'replied')),
+    admin_reply TEXT,
+    replied_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add email column to existing devices table for backward compatibility
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS payment_id UUID;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'unpaid' CHECK (payment_status IN ('unpaid', 'paid', 'refunded'));
 
 -- Token usage tracking table
 CREATE TABLE IF NOT EXISTS token_usage (

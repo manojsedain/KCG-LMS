@@ -69,7 +69,7 @@ exports.handler = async (event, context) => {
                         created_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                         created_by: 'System',
-                        file_size: 0,
+                        file_size: 45600, // ~45KB realistic userscript size
                         is_active: true,
                         downloads: 0,
                         last_access: null,
