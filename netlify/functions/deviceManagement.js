@@ -77,7 +77,7 @@ exports.handler = async (event, context) => {
                         .from('devices')
                         .select(`
                             id,
-                            username,
+                            email,
                             hwid,
                             fingerprint,
                             device_name,
@@ -98,7 +98,7 @@ exports.handler = async (event, context) => {
                     
                     // Apply search
                     if (search) {
-                        query = query.or(`username.ilike.%${search}%,device_name.ilike.%${search}%,hwid.ilike.%${search}%`);
+                        query = query.or(`email.ilike.%${search}%,device_name.ilike.%${search}%,hwid.ilike.%${search}%`);
                     }
                     
                     // Apply sort with column name mapping
@@ -112,7 +112,7 @@ exports.handler = async (event, context) => {
                             'created_asc': 'created_at',
                             'created': 'created_at',
                             'name': 'device_name',
-                            'user': 'username',
+                            'user': 'email',
                             'status': 'status'
                         };
                         

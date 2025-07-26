@@ -56,10 +56,10 @@ exports.handler = async (event, context) => {
 
     try {
         // Parse request body
-        const { username, hwid, fingerprint, deviceId } = JSON.parse(event.body);
+        const { email, hwid, fingerprint, deviceId } = JSON.parse(event.body);
 
         // Validate required fields
-        if (!username || !hwid || !fingerprint) {
+        if (!email || !hwid || !fingerprint) {
             return {
                 statusCode: 400,
                 headers,
@@ -85,7 +85,7 @@ exports.handler = async (event, context) => {
         }
 
         // Verify device belongs to the requesting user
-        if (device.username !== username) {
+        if (device.email !== email) {
             return {
                 statusCode: 403,
                 headers,
@@ -144,7 +144,7 @@ exports.handler = async (event, context) => {
                 updateNotes,
                 version,
                 deviceInfo: {
-                    username: device.username,
+                    email: device.email,
                     deviceId: device.id,
                     status: statusText,
                     expiryDate: device.expires_at,

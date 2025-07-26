@@ -24,14 +24,14 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // Parse request body for username (if POST)
-        let username = 'user';
+        // Parse request body for email (if POST)
+        let email = 'user@example.com';
         if (event.httpMethod === 'POST' && event.body) {
             try {
                 const body = JSON.parse(event.body);
-                username = body.username || 'user';
+                email = body.email || 'user@example.com';
             } catch (e) {
-                // If parsing fails, use default username
+                // If parsing fails, use default email
             }
         }
 
@@ -51,11 +51,11 @@ exports.handler = async (event, context) => {
 
         // Replace placeholders in the template
         const userScript = loaderTemplate
-            .replace(/{{USERNAME}}/g, username)
+            .replace(/{{EMAIL}}/g, email)
             .replace(/{{SITE_PASSWORD}}/g, 'defaultPassword') // This should be replaced with actual site password
             .replace(/{{API_BASE}}/g, 'https://wrongnumber.netlify.app/.netlify/functions');
 
-        const filename = `lms-ai-assistant-${username}.user.js`;
+        const filename = `lms-ai-assistant-${email.split('@')[0]}.user.js`;
 
         return {
             statusCode: 200,
@@ -235,7 +235,7 @@ function getProductionLoaderTemplate() {
     async function loadMainScript(deviceInfo) {
         try {
             const script = await makeRequest(\`\${CONFIG.API_BASE}/getMainScript\`, {
-                username: CONFIG.USERNAME,
+                email: CONFIG.EMAIL,
                 hwid: deviceInfo.hwid,
                 fingerprint: deviceInfo.fingerprint
             });
@@ -273,7 +273,7 @@ function getProductionLoaderTemplate() {
             
             // Check device status from server
             const statusResult = await makeRequest(\`\${CONFIG.API_BASE}/checkDeviceStatus\`, {
-                username: CONFIG.USERNAME,
+                email: CONFIG.EMAIL,
                 hwid: deviceInfo.hwid,
                 fingerprint: deviceInfo.fingerprint
             });
@@ -282,7 +282,7 @@ function getProductionLoaderTemplate() {
                 // Device not registered - register it
                 try {
                     await makeRequest(\`\${CONFIG.API_BASE}/registerDevice\`, {
-                        username: CONFIG.USERNAME,
+                        email: CONFIG.EMAIL,
                         hwid: deviceInfo.hwid,
                         fingerprint: deviceInfo.fingerprint
                     });

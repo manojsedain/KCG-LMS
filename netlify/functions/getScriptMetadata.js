@@ -84,7 +84,7 @@ exports.handler = async (event, context) => {
         // Get download count and last access info
         const { data: accessLogs, error: logsError } = await supabase
             .from('logs')
-            .select('created_at, username')
+            .select('created_at, email')
             .or('action.eq.script_download,action.eq.script_access')
             .order('created_at', { ascending: false })
             .limit(10);
@@ -99,7 +99,7 @@ exports.handler = async (event, context) => {
             const lastAccessLog = accessLogs.find(log => log.action === 'script_access' || log.action === 'script_download');
             if (lastAccessLog) {
                 lastAccess = lastAccessLog.created_at;
-                lastAccessUser = lastAccessLog.username;
+                lastAccessUser = lastAccessLog.email;
             }
         }
 

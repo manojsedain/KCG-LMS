@@ -215,7 +215,7 @@ exports.handler = async (event, context) => {
                             value: currentPricing.price.toFixed(2)
                         },
                         description: `LMS AI Assistant - ${currentPricing.subscriptionType === 'discount' ? 'Discount' : 'Lifetime'} License`,
-                        custom_id: `${username}_${deviceHwid}_${Date.now()}`
+                        custom_id: `${email}_${deviceHwid}_${Date.now()}`
                     }],
                     application_context: {
                         return_url: `${event.headers.origin || 'https://wrongnumber.netlify.app'}/payment-success`,
