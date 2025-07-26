@@ -1425,16 +1425,22 @@
                 return;
             }
             
+            // Destroy existing chart FIRST
+            if (window.deviceChart && typeof window.deviceChart.destroy === 'function') {
+                window.deviceChart.destroy();
+                window.deviceChart = null;
+            }
+            
+            // CRITICAL: Reset canvas dimensions to prevent accumulation
+            chartElement.width = 400;
+            chartElement.height = 200;
+            chartElement.style.width = '400px';
+            chartElement.style.height = '200px';
+            
             const ctx = chartElement.getContext('2d');
             if (!ctx) {
                 console.warn('Failed to get 2d context for device chart');
                 return;
-            }
-            
-            // Destroy existing chart if it exists
-            if (window.deviceChart && typeof window.deviceChart.destroy === 'function') {
-                window.deviceChart.destroy();
-                window.deviceChart = null;
             }
             
             // Create new chart and store reference
@@ -3512,16 +3518,22 @@ function switchNotificationTab(tab) {
                 return;
             }
             
+            // Destroy existing chart FIRST
+            if (tokenUsageChart && typeof tokenUsageChart.destroy === 'function') {
+                tokenUsageChart.destroy();
+                tokenUsageChart = null;
+            }
+            
+            // CRITICAL: Reset canvas dimensions to prevent accumulation
+            chartElement.width = 400;
+            chartElement.height = 200;
+            chartElement.style.width = '400px';
+            chartElement.style.height = '200px';
+            
             const ctx = chartElement.getContext('2d');
             if (!ctx) {
                 console.warn('Failed to get 2d context for token usage chart');
                 return;
-            }
-            
-            // Destroy existing chart
-            if (tokenUsageChart && typeof tokenUsageChart.destroy === 'function') {
-                tokenUsageChart.destroy();
-                tokenUsageChart = null;
             }
             
             const labels = dailyData.map(item => {
@@ -3582,16 +3594,22 @@ function switchNotificationTab(tab) {
                 return;
             }
             
+            // Destroy existing chart FIRST
+            if (featureUsageChart && typeof featureUsageChart.destroy === 'function') {
+                featureUsageChart.destroy();
+                featureUsageChart = null;
+            }
+            
+            // CRITICAL: Reset canvas dimensions to prevent accumulation
+            chartElement.width = 400;
+            chartElement.height = 400;
+            chartElement.style.width = '400px';
+            chartElement.style.height = '400px';
+            
             const ctx = chartElement.getContext('2d');
             if (!ctx) {
                 console.warn('Failed to get 2d context for feature usage chart');
                 return;
-            }
-            
-            // Destroy existing chart
-            if (featureUsageChart && typeof featureUsageChart.destroy === 'function') {
-                featureUsageChart.destroy();
-                featureUsageChart = null;
             }
             
             const labels = featureData.map(item => item.feature);
