@@ -60,28 +60,33 @@ exports.handler = async (event, context) => {
         // Get device statistics
         const { data: devices, error: devicesError } = await supabase
             .from('devices')
-            .select('id, status, created_at, username');
+            .select('id, status, created_at, email');
 
         if (devicesError) {
+            console.error('Devices query error:', devicesError);
             throw new Error('Failed to fetch devices: ' + devicesError.message);
         }
 
         // Calculate device statistics
-        const totalDevices = devices.length;
-        const activeDevices = devices.filter(d => d.status === 'active').length;
-        const pendingRequests = devices.filter(d => d.status === 'pending').length;
-        const blockedDevices = devices.filter(d => d.status === 'blocked').length;
-        const expiredDevices = devices.filter(d => d.status === 'expired').length;
+        const totalDevices = devices?.length || 0;
+        const activeDevices = devices?.filter(d => d.status === 'active').length || 0;
+        const pendingRequests = devices?.filter(d => d.status === 'pending').length || 0;
+        const blockedDevices = devices?.filter(d => d.status === 'blocked').length || 0;
+        const expiredDevices = devices?.filter(d => d.status === 'expired').length || 0;
 
-        // Get unique users count
-        const uniqueUsers = [...new Set(devices.map(d => d.username))].length;
+        // Get unique users count (using email instead of username)
+        const uniqueUsers = devices ? [...new Set(devices.map(d => d.email))].length : 0;
 
         // Get recent logs
         const { data: recentLogs, error: logsError } = await supabase
-            .from('logs')
+            .from('logs_new')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(10);
+        
+        if (logsError) {
+            console.error('Logs query error:', logsError);
+        }
 
         // Get pending device requests with details
         const { data: pendingDevices, error: pendingError } = await supabase
@@ -90,6 +95,10 @@ exports.handler = async (event, context) => {
             .eq('status', 'pending')
             .order('created_at', { ascending: false })
             .limit(5);
+        
+        if (pendingError) {
+            console.error('Pending devices query error:', pendingError);
+        }
 
         // Get active script info
         const { data: activeScript, error: scriptError } = await supabase
@@ -97,16 +106,24 @@ exports.handler = async (event, context) => {
             .select('*')
             .eq('is_active', true)
             .single();
+        
+        if (scriptError) {
+            console.error('Script query error:', scriptError);
+        }
 
         // Get system settings
         const { data: settingsData, error: settingsError } = await supabase
-            .from('settings')
-            .select('*');
+            .from('payment_settings')
+            .select('setting_key, setting_value');
+
+        if (settingsError) {
+            console.error('Settings query error:', settingsError);
+        }
 
         const settings = {};
         if (settingsData) {
             settingsData.forEach(setting => {
-                settings[setting.key] = setting.value;
+                settings[setting.setting_key] = setting.setting_value;
             });
         }
 
