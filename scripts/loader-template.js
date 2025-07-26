@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         LMS AI Assistant - {{USERNAME}}
+// @name         LMS AI Assistant - {{EMAIL}}
 // @namespace    https://wrongnumber.netlify.app
 // @version      9.0.0
 // @description  Production LMS AI Assistant - Silent operation with error-only prompts
@@ -20,7 +20,7 @@
     
     // Configuration
     const CONFIG = {
-        USERNAME: '{{USERNAME}}',
+        EMAIL: '{{EMAIL}}',
         API_BASE: 'https://wrongnumber.netlify.app/.netlify/functions',
         LMS_DOMAIN: 'king-lms.kcg.edu'
     };
@@ -147,7 +147,7 @@
     async function loadMainScript(deviceInfo) {
         try {
             const script = await makeRequest(`${CONFIG.API_BASE}/getMainScript`, {
-                username: CONFIG.USERNAME,
+                email: CONFIG.EMAIL,
                 hwid: deviceInfo.hwid,
                 fingerprint: deviceInfo.fingerprint
             });
@@ -185,7 +185,7 @@
             
             // Check device status from server
             const statusResult = await makeRequest(`${CONFIG.API_BASE}/checkDeviceStatus`, {
-                username: CONFIG.USERNAME,
+                email: CONFIG.EMAIL,
                 hwid: deviceInfo.hwid,
                 fingerprint: deviceInfo.fingerprint
             });
@@ -194,7 +194,7 @@
                 // Device not registered - register it
                 try {
                     await makeRequest(`${CONFIG.API_BASE}/registerDevice`, {
-                        username: CONFIG.USERNAME,
+                        email: CONFIG.EMAIL,
                         hwid: deviceInfo.hwid,
                         fingerprint: deviceInfo.fingerprint
                     });
