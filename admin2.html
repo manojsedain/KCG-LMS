@@ -1196,6 +1196,536 @@
             document.getElementById('fileInput').value = '';
         }
         
+        // Payment & Notification Functions
+        async function loadPaymentSettings() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: session.token,
+                        action: 'load'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    populatePaymentSettings(data.settings);
+                } else {
+                    showToast('Failed to load payment settings', 'error');
+                }
+            } catch (error) {
+                console.error('Payment settings load error:', error);
+                showToast('Error loading payment settings', 'error');
+            }
+        }
+        
+        function populatePaymentSettings(settings) {
+            if (settings.paypal) {
+                document.getElementById('paypalEnvironment').value = settings.paypal.environment || 'sandbox';
+                document.getElementById('paypalClientId').value = settings.paypal.clientId || '';
+                document.getElementById('paypalClientSecret').value = settings.paypal.clientSecret || '';
+            }
+            
+            if (settings.pricing) {
+                document.getElementById('discountPrice').value = settings.pricing.discountPrice || 36;
+                document.getElementById('lifetimePrice').value = settings.pricing.lifetimePrice || 68;
+                document.getElementById('discountEndDate').value = settings.pricing.discountEndDate || '';
+            }
+        }
+        
+        async function savePayPalSettings() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const settings = {
+                environment: document.getElementById('paypalEnvironment').value,
+                clientId: document.getElementById('paypalClientId').value,
+                clientSecret: document.getElementById('paypalClientSecret').value
+            };
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: session.token,
+                        action: 'savePayPal',
+                        settings
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('PayPal settings saved successfully', 'success');
+                } else {
+                    showToast(data.message || 'Failed to save PayPal settings', 'error');
+                }
+            } catch (error) {
+                console.error('Save PayPal settings error:', error);
+                showToast('Error saving PayPal settings', 'error');
+            }
+        }
+        
+        async function testPayPalConnection() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const statusDiv = document.getElementById('paypalStatus');
+            statusDiv.innerHTML = '<span class="text-yellow-400">Testing connection...</span>';
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: session.token,
+                        action: 'testPayPal'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.innerHTML = '<span class="text-green-400">✓ Connection successful</span>';
+                    showToast('PayPal connection test successful', 'success');
+                } else {
+                    statusDiv.innerHTML = '<span class="text-red-400">✗ Connection failed</span>';
+                    showToast(data.message || 'PayPal connection test failed', 'error');
+                }
+            } catch (error) {
+                console.error('PayPal test error:', error);
+                statusDiv.innerHTML = '<span class="text-red-400">✗ Connection error</span>';
+                showToast('Error testing PayPal connection', 'error');
+            }
+        }
+        
+        async function savePricingSettings() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const settings = {
+                discountPrice: parseFloat(document.getElementById('discountPrice').value),
+                lifetimePrice: parseFloat(document.getElementById('lifetimePrice').value),
+                discountEndDate: document.getElementById('discountEndDate').value
+            };
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: session.token,
+                        action: 'savePricing',
+                        settings
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Pricing settings saved successfully', 'success');
+                } else {
+                    showToast(data.message || 'Failed to save pricing settings', 'error');
+                }
+            } catch (error) {
+                console.error('Save pricing settings error:', error);
+                showToast('Error saving pricing settings', 'error');
+            }
+        }
+        
+        async function sendNotification() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const email = document.getElementById('notificationEmail').value;
+            const subject = document.getElementById('notificationSubject').value;
+            const message = document.getElementById('notificationMessage').value;
+            
+            if (!email || !subject || !message) {
+                showToast('Please fill in all notification fields', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/.netlify/functions/sendNotification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: session.token,
+                        email,
+                        subject,
+                        message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Notification sent successfully', 'success');
+                    // Clear form
+                    document.getElementById('notificationEmail').value = '';
+                    document.getElementById('notificationSubject').value = '';
+                    document.getElementById('notificationMessage').value = '';
+                    loadNotificationHistory();
+                } else {
+                    showToast(data.message || 'Failed to send notification', 'error');
+                }
+            } catch (error) {
+                console.error('Send notification error:', error);
+                showToast('Error sending notification', 'error');
+            }
+        }
+        
+        async function loadNotificationHistory() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            try {
+                const response = await fetch('/.netlify/functions/getNotificationHistory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: session.token
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayNotificationHistory(data.notifications);
+                } else {
+                    showToast('Failed to load notification history', 'error');
+                }
+            } catch (error) {
+                console.error('Notification history load error:', error);
+                showToast('Error loading notification history', 'error');
+            }
+        }
+        
+        function displayNotificationHistory(notifications) {
+            const historyDiv = document.getElementById('notificationHistory');
+            
+            if (!notifications || notifications.length === 0) {
+                historyDiv.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-bell text-4xl mb-4"></i>
+                        <p>No notifications sent yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            historyDiv.innerHTML = notifications.map(notification => `
+                <div class="bg-gray-800/50 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h5 class="font-semibold text-white">${notification.subject}</h5>
+                        <span class="text-sm text-gray-400">${formatDate(notification.created_at)}</span>
+                    </div>
+                    <p class="text-gray-300 mb-2">To: ${notification.recipient_email}</p>
+                    <p class="text-gray-400 text-sm">${notification.message}</p>
+                    <div class="mt-2">
+                        <span class="px-2 py-1 rounded text-xs ${
+                            notification.status === 'sent' ? 'bg-green-500/20 text-green-400' :
+                            notification.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                            'bg-yellow-500/20 text-yellow-400'
+                        }">
+                            ${notification.status}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadPaymentHistory() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            try {
+                const response = await fetch('/.netlify/functions/getPaymentHistory', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: session.token
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayPaymentHistory(data.payments);
+                } else {
+                    showToast('Failed to load payment history', 'error');
+                }
+            } catch (error) {
+                console.error('Payment history load error:', error);
+                showToast('Error loading payment history', 'error');
+            }
+        }
+        
+        function displayPaymentHistory(payments) {
+            const historyDiv = document.getElementById('paymentHistory');
+            
+            if (!payments || payments.length === 0) {
+                historyDiv.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-credit-card text-4xl mb-4"></i>
+                        <p>No payments received yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            historyDiv.innerHTML = payments.map(payment => `
+                <div class="bg-gray-800/50 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h5 class="font-semibold text-white">$${payment.amount} USD</h5>
+                            <p class="text-sm text-gray-400">${payment.email}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="px-2 py-1 rounded text-xs ${
+                                payment.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                payment.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                                'bg-red-500/20 text-red-400'
+                            }">
+                                ${payment.status}
+                            </span>
+                            <p class="text-sm text-gray-400 mt-1">${formatDate(payment.created_at)}</p>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        <p><strong>Method:</strong> ${payment.payment_method}</p>
+                        ${payment.transaction_id ? `<p><strong>Transaction ID:</strong> ${payment.transaction_id}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // System Settings Functions
+        async function loadSystemSettings() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            try {
+                const response = await fetch('/.netlify/functions/manageSystemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: session.token,
+                        action: 'load'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    populateSystemSettings(data.settings);
+                } else {
+                    showToast('Failed to load system settings', 'error');
+                }
+            } catch (error) {
+                console.error('System settings load error:', error);
+                showToast('Error loading system settings', 'error');
+            }
+        }
+        
+        function populateSystemSettings(settings) {
+            if (settings.admin) {
+                document.getElementById('adminEmails').value = settings.admin.emails ? settings.admin.emails.join(', ') : '';
+            }
+            
+            if (settings.email) {
+                document.getElementById('adminEmail').value = settings.email.adminEmail || '';
+                document.getElementById('smtpHost').value = settings.email.smtpHost || '';
+                document.getElementById('smtpPort').value = settings.email.smtpPort || '';
+                document.getElementById('smtpUsername').value = settings.email.smtpUsername || '';
+                document.getElementById('smtpPassword').value = settings.email.smtpPassword || '';
+            }
+        }
+        
+        async function saveAdminSettings() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const emails = document.getElementById('adminEmails').value
+                .split(',')
+                .map(email => email.trim())
+                .filter(email => email);
+            
+            const currentPassword = document.getElementById('sitePassword').value;
+            const newPassword = document.getElementById('newSitePassword').value;
+            
+            const settings = {
+                emails,
+                currentPassword,
+                newPassword: newPassword || undefined
+            };
+            
+            try {
+                const response = await fetch('/.netlify/functions/manageSystemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: session.token,
+                        action: 'saveAdmin',
+                        settings
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Admin settings saved successfully', 'success');
+                    document.getElementById('sitePassword').value = '';
+                    document.getElementById('newSitePassword').value = '';
+                } else {
+                    showToast(data.message || 'Failed to save admin settings', 'error');
+                }
+            } catch (error) {
+                console.error('Save admin settings error:', error);
+                showToast('Error saving admin settings', 'error');
+            }
+        }
+        
+        async function saveEmailSettings() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const settings = {
+                adminEmail: document.getElementById('adminEmail').value,
+                smtpHost: document.getElementById('smtpHost').value,
+                smtpPort: parseInt(document.getElementById('smtpPort').value),
+                smtpUsername: document.getElementById('smtpUsername').value,
+                smtpPassword: document.getElementById('smtpPassword').value
+            };
+            
+            try {
+                const response = await fetch('/.netlify/functions/manageSystemSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token: session.token,
+                        action: 'saveEmail',
+                        settings
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Email settings saved successfully', 'success');
+                } else {
+                    showToast(data.message || 'Failed to save email settings', 'error');
+                }
+            } catch (error) {
+                console.error('Save email settings error:', error);
+                showToast('Error saving email settings', 'error');
+            }
+        }
+        
+        // System Logs Functions
+        async function loadSystemLogs() {
+            const session = getValidSession();
+            if (!session) return;
+            
+            const logType = document.getElementById('logTypeFilter').value;
+            
+            try {
+                const response = await fetch('/.netlify/functions/getSystemLogs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: session.token,
+                        logType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySystemLogs(data.logs);
+                } else {
+                    showToast('Failed to load system logs', 'error');
+                }
+            } catch (error) {
+                console.error('System logs load error:', error);
+                showToast('Error loading system logs', 'error');
+            }
+        }
+        
+        function displaySystemLogs(logs) {
+            const logsList = document.getElementById('logsList');
+            
+            if (!logs || logs.length === 0) {
+                logsList.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-file-alt text-4xl mb-4"></i>
+                        <p>No logs found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            logsList.innerHTML = logs.map(log => `
+                <div class="bg-gray-800/50 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-3">
+                            <span class="px-2 py-1 rounded text-xs font-medium ${
+                                log.level === 'error' ? 'bg-red-500/20 text-red-400' :
+                                log.level === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                                log.level === 'info' ? 'bg-blue-500/20 text-blue-400' :
+                                'bg-gray-500/20 text-gray-400'
+                            }">
+                                ${log.level}
+                            </span>
+                            <span class="px-2 py-1 rounded text-xs bg-gray-600/50 text-gray-300">
+                                ${log.category}
+                            </span>
+                        </div>
+                        <span class="text-sm text-gray-400">${formatDate(log.created_at)}</span>
+                    </div>
+                    <p class="text-white font-medium mb-1">${log.message}</p>
+                    ${log.details ? `<p class="text-gray-400 text-sm">${log.details}</p>` : ''}
+                    ${log.user_email ? `<p class="text-gray-500 text-xs mt-2">User: ${log.user_email}</p>` : ''}
+                </div>
+            `).join('');
+        }
+        
+        async function clearSystemLogs() {
+            if (!confirm('Are you sure you want to clear all system logs? This action cannot be undone.')) return;
+            
+            const session = getValidSession();
+            if (!session) return;
+            
+            try {
+                const response = await fetch('/.netlify/functions/clearSystemLogs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        token: session.token
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('System logs cleared successfully', 'success');
+                    loadSystemLogs();
+                } else {
+                    showToast(data.message || 'Failed to clear system logs', 'error');
+                }
+            } catch (error) {
+                console.error('Clear logs error:', error);
+                showToast('Error clearing system logs', 'error');
+            }
+        }
+        
         function updateDashboardStats(stats) {
             if (!stats) return;
             
@@ -1393,6 +1923,36 @@
             // Initialize tabs
             initializeTabs();
             
+            // Add all remaining event listeners
+            
+            // Device Management Event Listeners
+            document.getElementById('refreshDevicesBtn').addEventListener('click', loadDevices);
+            document.getElementById('clearDevicesBtn').addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear all devices? This action cannot be undone.')) {
+                    // Implementation for clearing all devices
+                    showToast('Clear all devices functionality to be implemented', 'info');
+                }
+            });
+            
+            // Payment & Notification Event Listeners
+            document.getElementById('savePayPalBtn').addEventListener('click', savePayPalSettings);
+            document.getElementById('testPayPalBtn').addEventListener('click', testPayPalConnection);
+            document.getElementById('savePricingBtn').addEventListener('click', savePricingSettings);
+            document.getElementById('sendNotificationBtn').addEventListener('click', sendNotification);
+            
+            // System Settings Event Listeners
+            document.getElementById('saveAdminSettingsBtn').addEventListener('click', saveAdminSettings);
+            document.getElementById('saveEmailSettingsBtn').addEventListener('click', saveEmailSettings);
+            
+            // System Logs Event Listeners
+            document.getElementById('refreshLogsBtn').addEventListener('click', loadSystemLogs);
+            document.getElementById('clearLogsBtn').addEventListener('click', clearSystemLogs);
+            document.getElementById('logTypeFilter').addEventListener('change', loadSystemLogs);
+            
+            // Device search and filter
+            document.getElementById('deviceSearchInput').addEventListener('input', filterDevices);
+            document.getElementById('deviceStatusFilter').addEventListener('change', filterDevices);
+            
             // Check for existing session
             const session = getValidSession();
             if (session) {
@@ -1400,6 +1960,16 @@
             } else {
                 showLoginScreen();
             }
+        }
+        
+        function filterDevices() {
+            // Device filtering functionality
+            const searchTerm = document.getElementById('deviceSearchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('deviceStatusFilter').value;
+            
+            // This would filter the displayed devices based on search and status
+            // For now, just reload devices
+            loadDevices();
         }
         
         function updateFileDisplay(file) {
