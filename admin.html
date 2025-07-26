@@ -1402,11 +1402,22 @@
         }
 
         function updateDeviceChart(deviceActivity) {
-            const ctx = document.getElementById('deviceChart').getContext('2d');
+            const chartElement = document.getElementById('deviceChart');
+            if (!chartElement) {
+                console.warn('Device chart element not found, skipping chart update');
+                return;
+            }
+            
+            const ctx = chartElement.getContext('2d');
+            if (!ctx) {
+                console.warn('Failed to get 2d context for device chart');
+                return;
+            }
             
             // Destroy existing chart if it exists
             if (window.deviceChart && typeof window.deviceChart.destroy === 'function') {
                 window.deviceChart.destroy();
+                window.deviceChart = null;
             }
             
             // Create new chart and store reference
@@ -3478,12 +3489,22 @@ function switchNotificationTab(tab) {
         }
         
         function updateDailyTokenChart(dailyData) {
-            const ctx = document.getElementById('tokenUsageChart');
-            if (!ctx) return;
+            const chartElement = document.getElementById('tokenUsageChart');
+            if (!chartElement) {
+                console.warn('Token usage chart element not found, skipping chart update');
+                return;
+            }
+            
+            const ctx = chartElement.getContext('2d');
+            if (!ctx) {
+                console.warn('Failed to get 2d context for token usage chart');
+                return;
+            }
             
             // Destroy existing chart
-            if (tokenUsageChart) {
+            if (tokenUsageChart && typeof tokenUsageChart.destroy === 'function') {
                 tokenUsageChart.destroy();
+                tokenUsageChart = null;
             }
             
             const labels = dailyData.map(item => {
@@ -3538,12 +3559,22 @@ function switchNotificationTab(tab) {
         }
         
         function updateFeatureUsageChart(featureData) {
-            const ctx = document.getElementById('featureUsageChart');
-            if (!ctx) return;
+            const chartElement = document.getElementById('featureUsageChart');
+            if (!chartElement) {
+                console.warn('Feature usage chart element not found, skipping chart update');
+                return;
+            }
+            
+            const ctx = chartElement.getContext('2d');
+            if (!ctx) {
+                console.warn('Failed to get 2d context for feature usage chart');
+                return;
+            }
             
             // Destroy existing chart
-            if (featureUsageChart) {
+            if (featureUsageChart && typeof featureUsageChart.destroy === 'function') {
                 featureUsageChart.destroy();
+                featureUsageChart = null;
             }
             
             const labels = featureData.map(item => item.feature);
