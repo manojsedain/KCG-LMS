@@ -332,7 +332,7 @@ exports.handler = async (event, context) => {
         try {
             console.log('🔍 Registering device with:', {
                 url: CONFIG.BACKEND_URL + '/registerDevice',
-                email: deviceInfo.email,
+                username: deviceInfo.username,
                 hwid: deviceInfo.hwid?.substring(0, 20) + '...',
                 fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...',
                 deviceName: deviceInfo.deviceName
@@ -370,7 +370,7 @@ exports.handler = async (event, context) => {
         try {
             console.log('🔍 Checking device status with:', {
                 url: CONFIG.BACKEND_URL + '/checkDeviceStatus',
-                email: deviceInfo.email,
+                username: deviceInfo.username,
                 hwid: deviceInfo.hwid?.substring(0, 20) + '...',
                 fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...'
             });
@@ -379,7 +379,7 @@ exports.handler = async (event, context) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: deviceInfo.email,
+                    username: deviceInfo.username,
                     hwid: deviceInfo.hwid,
                     fingerprint: deviceInfo.fingerprint
                 })
@@ -411,7 +411,7 @@ exports.handler = async (event, context) => {
         try {
             console.log('🔍 Calling getMainScript with:', {
                 url: CONFIG.BACKEND_URL + '/getMainScript',
-                email: deviceInfo.email,
+                username: deviceInfo.username,
                 hwid: deviceInfo.hwid?.substring(0, 20) + '...',
                 fingerprint: deviceInfo.fingerprint?.substring(0, 20) + '...'
             });
@@ -420,7 +420,7 @@ exports.handler = async (event, context) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: deviceInfo.email,
+                    username: deviceInfo.username,
                     hwid: deviceInfo.hwid,
                     fingerprint: deviceInfo.fingerprint
                 })

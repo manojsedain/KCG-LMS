@@ -362,8 +362,8 @@ exports.handler = async (event, context) => {
                 
                 // Get payment details before deletion for logging
                 const { data: paymentDetails, error: fetchError } = await supabase
-                    .from('payments_new')
-                    .select('email, amount, payment_status')
+                    .from('payments')
+                    .select('username, amount, payment_status')
                     .eq('id', deletePaymentId)
                     .single();
                 
@@ -381,7 +381,7 @@ exports.handler = async (event, context) => {
                 
                 // Delete the payment record
                 const { error: deleteError } = await supabase
-                    .from('payments_new')
+                    .from('payments')
                     .delete()
                     .eq('id', deletePaymentId);
                 
@@ -398,13 +398,13 @@ exports.handler = async (event, context) => {
                 }
                 
                 // Log the deletion
-                await supabase.from('logs_new').insert({
+                await supabase.from('logs').insert({
                     log_type: 'admin',
                     level: 'warning',
                     message: 'Payment record deleted by admin',
                     details: {
                         deleted_payment_id: deletePaymentId,
-                        payment_email: paymentDetails?.email,
+                        payment_username: paymentDetails?.username,
                         payment_amount: paymentDetails?.amount,
                         payment_status: paymentDetails?.payment_status,
                         admin_user: sessionCheck.payload.username,

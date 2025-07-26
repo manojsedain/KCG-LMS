@@ -60,7 +60,7 @@ exports.handler = async (event, context) => {
         // Get device statistics
         const { data: devices, error: devicesError } = await supabase
             .from('devices')
-            .select('id, status, created_at, email');
+            .select('id, status, created_at, username');
 
         if (devicesError) {
             throw new Error('Failed to fetch devices: ' + devicesError.message);
@@ -74,7 +74,7 @@ exports.handler = async (event, context) => {
         const expiredDevices = devices.filter(d => d.status === 'expired').length;
 
         // Get unique users count
-        const uniqueUsers = [...new Set(devices.map(d => d.email))].length;
+        const uniqueUsers = [...new Set(devices.map(d => d.username))].length;
 
         // Get recent logs
         const { data: recentLogs, error: logsError } = await supabase
