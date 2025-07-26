@@ -858,6 +858,7 @@ Now, please respond to the following questions strictly in accordance with the g
             }
 
             const config = this.getAPIConfig(provider, prompt, apiKey);
+            const startTime = Date.now();
             
             return new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({
@@ -866,7 +867,7 @@ Now, please respond to the following questions strictly in accordance with the g
                     headers: config.headers,
                     data: JSON.stringify(config.data),
                     timeout: 30000,
-                    onload: (response) => {
+                    onload: async (response) => {
                         try {
                             if (response.status === 401 || response.status === 403) {
                                 throw new Error('API authentication failed');
@@ -882,6 +883,18 @@ Now, please respond to the following questions strictly in accordance with the g
                             }
                             
                             const result = this.extractAnswer(provider, data);
+                            
+                            // Track token usage
+                            const tokensUsed = this.estimateTokenUsage(prompt, result, provider, data);
+                            await this.trackTokenUsage({
+                                provider,
+                                prompt,
+                                response: result,
+                                tokensUsed,
+                                responseTime: Date.now() - startTime,
+                                feature: this.getCurrentFeature()
+                            });
+                            
                             resolve(result);
                         } catch (error) {
                             reject(error);
@@ -967,6 +980,207 @@ Now, please respond to the following questions strictly in accordance with the g
 
         generateCacheKey(provider, prompt) {
             return `${provider}:${encodeURIComponent(prompt.substring(0, 100))}`;
+        }
+
+        // ===== TOKEN USAGE TRACKING METHODS =====
+        
+        estimateTokenUsage(prompt, response, provider, apiData) {
+            // Try to get actual token usage from API response first
+            if (apiData && apiData.usage && apiData.usage.total_tokens) {
+                return apiData.usage.total_tokens;
+            }
+            
+            // Fallback to estimation based on text length
+            const promptTokens = Math.ceil(prompt.length / 4); // Rough estimate: 4 chars per token
+            const responseTokens = Math.ceil(response.length / 4);
+            return promptTokens + responseTokens;
+        }
+        
+        getCurrentFeature() {
+            // Determine current feature based on context
+            const url = window.location.href;
+            const pageContent = document.body.textContent.toLowerCase();
+            
+            if (pageContent.includes('quiz') || pageContent.includes('test') || pageContent.includes('exam')) {
+                return 'quiz_helper';
+            } else if (pageContent.includes('assignment') || pageContent.includes('homework')) {
+                return 'assignment_helper';
+            } else if (url.includes('chat') || document.querySelector('[class*="chat"]')) {
+                return 'ai_chat';
+            } else if (pageContent.includes('question') && pageContent.includes('answer')) {
+                return 'auto_answer';
+            } else {
+                return 'content_analysis';
+            }
+        }
+        
+        async trackTokenUsage(usageData) {
+            try {
+                // Get user email from current context or stored data
+                const userEmail = this.getUserEmail();
+                if (!userEmail) {
+                    console.log('[LMS AI] No user email found, skipping token tracking');
+                    return;
+                }
+                
+                // Generate device info for tracking
+                const deviceInfo = this.generateDeviceInfo();
+                
+                // Prepare tracking data
+                const trackingData = {
+                    email: userEmail,
+                    hwid: deviceInfo.hwid,
+                    fingerprint: deviceInfo.fingerprint,
+                    tokensUsed: usageData.tokensUsed,
+                    provider: usageData.provider,
+                    feature: usageData.feature,
+                    prompt: usageData.prompt.substring(0, 1000), // Limit prompt length
+                    response: usageData.response.substring(0, 2000), // Limit response length
+                    sessionId: this.getSessionId(),
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Send to tracking API
+                await this.sendTokenUsageData(trackingData);
+                
+                console.log(`[LMS AI] Token usage tracked: ${usageData.tokensUsed} tokens for ${usageData.feature}`);
+                
+            } catch (error) {
+                console.error('[LMS AI] Token tracking error:', error);
+                // Don't throw error to avoid breaking main functionality
+            }
+        }
+        
+        getUserEmail() {
+            // Try to get email from various sources
+            
+            // 1. Check if stored in localStorage/GM storage
+            try {
+                const storedEmail = GM_getValue('user_email', '');
+                if (storedEmail && this.isValidEmail(storedEmail)) {
+                    return storedEmail;
+                }
+            } catch (e) {}
+            
+            // 2. Try to extract from page content (LMS systems often show user email)
+            const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+            const pageText = document.body.textContent;
+            const emailMatches = pageText.match(emailRegex);
+            
+            if (emailMatches && emailMatches.length > 0) {
+                // Filter out common non-user emails
+                const filteredEmails = emailMatches.filter(email => 
+                    !email.includes('noreply') && 
+                    !email.includes('support') && 
+                    !email.includes('admin') &&
+                    !email.includes('info')
+                );
+                
+                if (filteredEmails.length > 0) {
+                    const email = filteredEmails[0];
+                    // Store for future use
+                    GM_setValue('user_email', email);
+                    return email;
+                }
+            }
+            
+            // 3. Try to get from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const emailFromUrl = urlParams.get('email') || urlParams.get('user') || urlParams.get('username');
+            if (emailFromUrl && this.isValidEmail(emailFromUrl)) {
+                GM_setValue('user_email', emailFromUrl);
+                return emailFromUrl;
+            }
+            
+            // 4. Fallback: prompt user for email (only once)
+            const hasPrompted = GM_getValue('email_prompted', false);
+            if (!hasPrompted) {
+                const userInput = prompt('LMS AI Assistant: Please enter your email for usage tracking:');
+                if (userInput && this.isValidEmail(userInput)) {
+                    GM_setValue('user_email', userInput);
+                    GM_setValue('email_prompted', true);
+                    return userInput;
+                }
+                GM_setValue('email_prompted', true);
+            }
+            
+            return null;
+        }
+        
+        isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+        
+        generateDeviceInfo() {
+            // Generate consistent device fingerprint
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('Device fingerprint', 2, 2);
+            
+            const hwid = btoa(JSON.stringify({
+                userAgent: navigator.userAgent,
+                language: navigator.language,
+                platform: navigator.platform,
+                screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                canvas: canvas.toDataURL()
+            })).substring(0, 64);
+            
+            const fingerprint = btoa(JSON.stringify({
+                plugins: Array.from(navigator.plugins).map(p => p.name).join(','),
+                webgl: (() => {
+                    const gl = canvas.getContext('webgl');
+                    return gl ? gl.getParameter(gl.RENDERER) : 'none';
+                })(),
+                fonts: 'Arial,Times,Courier,Helvetica' // Simplified for consistency
+            })).substring(0, 64);
+            
+            return { hwid, fingerprint };
+        }
+        
+        getSessionId() {
+            // Get or create session ID
+            let sessionId = GM_getValue('current_session_id', '');
+            if (!sessionId) {
+                sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                GM_setValue('current_session_id', sessionId);
+            }
+            return sessionId;
+        }
+        
+        async sendTokenUsageData(data) {
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: 'https://wrongnumber.netlify.app/.netlify/functions/trackTokenUsage',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify(data),
+                    timeout: 10000,
+                    onload: (response) => {
+                        try {
+                            if (response.status === 200) {
+                                const result = JSON.parse(response.responseText);
+                                if (result.success) {
+                                    resolve(result);
+                                } else {
+                                    reject(new Error(result.message || 'Token tracking failed'));
+                                }
+                            } else {
+                                reject(new Error(`HTTP ${response.status}: ${response.statusText}`));
+                            }
+                        } catch (error) {
+                            reject(error);
+                        }
+                    },
+                    onerror: () => reject(new Error('Network error during token tracking')),
+                    ontimeout: () => reject(new Error('Token tracking request timeout'))
+                });
+            });
         }
     }
 

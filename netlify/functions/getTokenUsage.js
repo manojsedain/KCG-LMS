@@ -36,23 +36,30 @@ exports.handler = async (event, context) => {
     try {
         // Verify admin authentication
         const authHeader = event.headers.authorization;
+        console.log('Auth header received:', authHeader ? 'Bearer token present' : 'No auth header');
+        
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log('Missing or invalid authorization header');
             return {
                 statusCode: 401,
                 headers,
-                body: JSON.stringify({ success: false, message: 'Unauthorized' })
+                body: JSON.stringify({ success: false, message: 'Unauthorized - Missing Bearer token' })
             };
         }
 
         const token = authHeader.split(' ')[1];
+        console.log('Token received, length:', token ? token.length : 0);
+        
         let decoded;
         try {
             decoded = jwt.verify(token, CONFIG.JWT_SECRET);
+            console.log('Token verified successfully, payload:', { role: decoded.role, type: decoded.type });
         } catch (jwtError) {
+            console.log('JWT verification failed:', jwtError.message);
             return {
                 statusCode: 401,
                 headers,
-                body: JSON.stringify({ success: false, message: 'Invalid token' })
+                body: JSON.stringify({ success: false, message: 'Invalid token: ' + jwtError.message })
             };
         }
 
@@ -82,13 +89,12 @@ exports.handler = async (event, context) => {
                 startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         }
 
-        // Get token usage statistics from existing logs table
+        // Get token usage statistics from token_usage table
         const { data: tokenLogs, error: tokenError } = await supabase
-            .from('logs')
+            .from('token_usage')
             .select('*')
-            .eq('log_type', 'token_usage')
-            .gte('created_at', startDate.toISOString())
-            .order('created_at', { ascending: false });
+            .gte('timestamp', startDate.toISOString())
+            .order('timestamp', { ascending: false });
 
         if (tokenError) {
             console.error('Error fetching token usage:', tokenError);
@@ -124,8 +130,8 @@ exports.handler = async (event, context) => {
         let totalTokens = 0;
 
         tokenLogs.forEach(record => {
-            const date = record.created_at.split('T')[0]; // Get date part only
-            const email = record.user_email;
+            const date = record.timestamp.split('T')[0]; // Get date part only
+            const email = record.email;
             const feature = record.feature_type || 'general';
             const tokens = record.tokens_used || 0;
 
@@ -168,16 +174,13 @@ exports.handler = async (event, context) => {
 
         // Get user count for additional stats
         const { data: activeUsers, error: usersError } = await supabase
-            .from('token_usage_new')
-            .select('user_email')
-            .gte('created_at', startDate.toISOString())
-            .then(result => {
-                if (result.error) return result;
-                const uniqueUsers = [...new Set(result.data.map(r => r.user_email))];
-                return { data: uniqueUsers, error: null };
-            });
+            .from('token_usage')
+            .select('email')
+            .gte('timestamp', startDate.toISOString());
+            
+        const uniqueUsers = activeUsers ? [...new Set(activeUsers.map(r => r.email))] : [];
 
-        const activeUserCount = activeUsers?.length || 0;
+        const activeUserCount = uniqueUsers.length || 0;
 
         // Calculate average tokens per user
         const avgTokensPerUser = activeUserCount > 0 ? Math.round(totalTokens / activeUserCount) : 0;
