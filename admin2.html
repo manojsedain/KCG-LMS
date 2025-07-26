@@ -771,50 +771,54 @@
         }
         
         // Authentication Functions
-        async function login(event) {
-            event.preventDefault();
+        async function handleLogin(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
             
             const password = document.getElementById('adminPassword').value;
-            const loginBtn = document.getElementById('loginBtnText');
-            const spinner = document.getElementById('loginSpinner');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginBtnText = document.getElementById('loginBtnText');
+            const loginSpinner = document.getElementById('loginSpinner');
             
             if (!password) {
                 showToast('Please enter admin password', 'error');
-                return;
+                return false;
             }
             
-            loginBtn.textContent = 'Signing in...';
-            spinner.classList.remove('hidden');
+            // Show loading state
+            loginBtnText.classList.add('hidden');
+            loginSpinner.classList.remove('hidden');
+            loginBtn.disabled = true;
             
             try {
-                const response = await fetch('/.netlify/functions/adminAuth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    const sessionData = {
-                        token: result.token,
+                // Simple password check - same as original admin.html
+                if (password === 'manakamana12') {
+                    const session = {
+                        token: 'admin-token-' + Date.now(),
                         expires: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+                        expiry: Date.now() + (7 * 24 * 60 * 60 * 1000),
                         lastActivity: Date.now()
                     };
+                    localStorage.setItem('adminSession', JSON.stringify(session));
                     
-                    localStorage.setItem('adminSession', JSON.stringify(sessionData));
-                    showAdminInterface();
                     showToast('Login successful!', 'success');
+                    showAdminInterface();
                 } else {
-                    showToast(result.message || 'Invalid credentials', 'error');
+                    showToast('Invalid password', 'error');
                 }
             } catch (error) {
                 console.error('Login error:', error);
                 showToast('Login failed. Please try again.', 'error');
             } finally {
-                loginBtn.textContent = 'Sign In';
-                spinner.classList.add('hidden');
+                // Reset button state
+                loginBtnText.classList.remove('hidden');
+                loginSpinner.classList.add('hidden');
+                loginBtn.disabled = false;
             }
+            
+            return false;
         }
         
         function logout() {
@@ -1860,9 +1864,11 @@
         
         // Initialize admin interface
         function initializeAdmin() {
-            // Add event listeners
-            document.getElementById('loginForm').addEventListener('submit', login);
-            
+            // Login form event listener
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLogin);
+            }
             // Navigation
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.addEventListener('click', (e) => {
