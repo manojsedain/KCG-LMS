@@ -62,27 +62,37 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Get site password from database
-        const { data: settingData, error: settingError } = await supabase
-            .from('payment_settings')
-            .select('setting_value')
-            .eq('setting_key', 'site_password')
-            .single();
+        // Get site password from database with fallback
+        let sitePasswordFromDB = 'wrongnumber'; // Default fallback
+        
+        try {
+            const { data: settingData, error: settingError } = await supabase
+                .from('payment_settings')
+                .select('setting_value')
+                .eq('setting_key', 'site_password')
+                .single();
 
-        if (settingError || !settingData) {
-            console.error('Error fetching site password:', settingError);
-            return {
-                statusCode: 500,
-                headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    success: false, 
-                    message: 'Server configuration error' 
-                })
-            };
+            if (settingData && !settingError) {
+                sitePasswordFromDB = settingData.setting_value;
+            } else {
+                // Try fallback from admin_settings table
+                const { data: adminSettingData } = await supabase
+                    .from('admin_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'site_password')
+                    .single();
+                    
+                if (adminSettingData) {
+                    sitePasswordFromDB = adminSettingData.setting_value;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching site password, using default:', error);
+            // Continue with default password
         }
 
         // Validate site password
-        if (sitePassword !== settingData.setting_value) {
+        if (sitePassword !== sitePasswordFromDB) {
             // Log failed attempt
             await supabase.from('logs_new').insert({
                 log_type: 'security',

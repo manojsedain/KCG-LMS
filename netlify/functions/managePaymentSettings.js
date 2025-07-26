@@ -500,6 +500,78 @@ exports.handler = async (event, context) => {
                     })
                 };
 
+            case 'updateSettings':
+                const { settings: updateSettingsData } = actionData;
+                
+                if (!updateSettingsData || typeof updateSettingsData !== 'object') {
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Settings object is required'
+                        })
+                    };
+                }
+                
+                // Update each setting in the database
+                const updateSettingsPromises = Object.entries(updateSettingsData).map(async ([key, value]) => {
+                    const { error } = await supabase
+                        .from('payment_settings')
+                        .upsert({
+                            setting_key: key,
+                            setting_value: value,
+                            setting_type: 'string',
+                            description: `Updated via admin panel`,
+                            updated_at: new Date().toISOString()
+                        }, {
+                            onConflict: 'setting_key'
+                        });
+                    
+                    if (error) {
+                        console.error(`Error updating setting ${key}:`, error);
+                        throw error;
+                    }
+                });
+                
+                try {
+                    await Promise.all(updateSettingsPromises);
+                    
+                    // Log the settings update
+                    await supabase.from('logs_new').insert({
+                        log_type: 'admin',
+                        level: 'info',
+                        message: 'Admin settings updated',
+                        details: {
+                            updated_settings: Object.keys(updateSettingsData),
+                            admin_user: sessionCheck.payload.username || 'admin',
+                            update_time: new Date().toISOString()
+                        },
+                        user_email: sessionCheck.payload.username || 'admin@example.com',
+                        ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                        user_agent: event.headers['user-agent']
+                    });
+                    
+                    return {
+                        statusCode: 200,
+                        headers,
+                        body: JSON.stringify({
+                            success: true,
+                            message: 'Settings updated successfully'
+                        })
+                    };
+                } catch (error) {
+                    console.error('Error updating settings:', error);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Failed to update settings: ' + error.message
+                        })
+                    };
+                }
+
             default:
                 return {
                     statusCode: 400,
