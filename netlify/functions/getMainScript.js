@@ -24,16 +24,16 @@ exports.handler = async (event, context) => {
     try {
         // Parse request body
         const requestBody = JSON.parse(event.body || '{}');
-        const { username, hwid, fingerprint } = requestBody;
+        const { email, hwid, fingerprint } = requestBody;
 
         // Basic validation
-        if (!username || !hwid || !fingerprint) {
+        if (!email || !hwid || !fingerprint) {
             return {
                 statusCode: 400,
                 headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Missing required fields: username, hwid, fingerprint' 
+                    message: 'Missing required fields: email, hwid, fingerprint' 
                 })
             };
         }
@@ -46,14 +46,14 @@ exports.handler = async (event, context) => {
         const supabase = createClient(supabaseUrl, supabaseKey);
         
         // Track user access
-        async function logUserAccess(username, scriptId) {
+        async function logUserAccess(email, scriptId) {
             try {
                 await supabase
                     .from('logs')
                     .insert({
                         action: 'script_access',
-                        username: username,
-                        message: `User ${username} accessed main script`,
+                        email: email,
+                        message: `User ${email} accessed main script`,
                         details: JSON.stringify({ scriptId, timestamp: new Date().toISOString() }),
                         level: 'info'
                     });
@@ -95,7 +95,7 @@ exports.handler = async (event, context) => {
             console.log(`Update notes: ${scriptData.update_notes || 'No notes'}`);
             
             // Log user access for analytics
-            await logUserAccess(username, scriptData.id);
+            await logUserAccess(email, scriptData.id);
             
         } catch (error) {
             console.warn('Could not load script from database, using fallback:', error.message);
@@ -106,7 +106,7 @@ exports.handler = async (event, context) => {
     'use strict';
     
     console.log('🎉 LMS AI Assistant Main Script loaded successfully!');
-    console.log('User: ` + username + `');
+    console.log('User: ` + email + `');
     console.log('Device validated and script delivered');
     
     // Basic LMS AI Assistant functionality
@@ -277,7 +277,7 @@ exports.handler = async (event, context) => {
                 <strong>AI Response:</strong><br><br>
                 Thank you for your question: "\${question}"<br><br>
                 🎯 <strong>LMS AI Assistant is now active!</strong><br>
-                • User: ` + username + `<br>
+                • User: ` + email + `<br>
                 • Device validated and approved<br>
                 • Full functionality loaded<br><br>
                 <em>Note: This is a demonstration. Full AI capabilities require API configuration in the admin panel.</em>
@@ -295,7 +295,7 @@ exports.handler = async (event, context) => {
                 <strong>Auto Answer Results:</strong><br><br>
                 ✅ LMS AI Assistant is fully operational!<br>
                 🎯 Ready to assist with quiz questions<br>
-                🤖 AI capabilities active for user: ` + username + `<br><br>
+                🤖 AI capabilities active for user: ` + email + `<br><br>
                 <em>Auto-answer functionality requires quiz content to be present on the page.</em>
             \`;
         }, 1000);
@@ -328,7 +328,7 @@ exports.handler = async (event, context) => {
                         <strong>LMS AI Assistant</strong>
                     </div>
                     <div style="font-size: 12px; opacity: 0.9;">
-                        Successfully loaded for user: ` + username + `<br>
+                        Successfully loaded for user: ` + email + `<br>
                         Click the AI button to get started!
                     </div>
                 </div>

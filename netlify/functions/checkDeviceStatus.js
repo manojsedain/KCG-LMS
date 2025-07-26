@@ -33,10 +33,10 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        const { username, hwid, fingerprint } = JSON.parse(event.body);
+        const { email, hwid, fingerprint } = JSON.parse(event.body);
 
         // Validate required fields
-        if (!username || !hwid || !fingerprint) {
+        if (!email || !hwid || !fingerprint) {
             return {
                 statusCode: 400,
                 headers,
@@ -115,7 +115,7 @@ exports.handler = async (event, context) => {
                 level: 'warn',
                 message: 'Device expired',
                 details: { 
-                    username: device.username,
+                    email: device.email,
                     device_name: device.device_name,
                     expired_at: device.expires_at
                 },

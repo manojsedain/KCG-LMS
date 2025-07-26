@@ -57,10 +57,10 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Get device statistics using email column (with username fallback)
+        // Get device statistics using email column
         const { data: devices, error: devicesError } = await supabase
             .from('devices')
-            .select('id, email, username, status, created_at, last_used')
+            .select('id, email, status, created_at, last_used')
             .order('created_at', { ascending: false });
         
         if (devicesError) {
@@ -73,8 +73,8 @@ exports.handler = async (event, context) => {
         const pendingDeviceCount = devices ? devices.filter(d => d.status === 'pending').length : 0;
         const expiredDevices = devices ? devices.filter(d => d.status === 'expired' || d.status === 'blocked').length : 0;
         
-        // Get unique users count (prefer email, fallback to username)
-        const uniqueUsers = devices ? new Set(devices.map(d => d.email || d.username).filter(Boolean)).size : 0;
+        // Get unique users count using email
+        const uniqueUsers = devices ? new Set(devices.map(d => d.email).filter(Boolean)).size : 0;
 
         // Get recent logs
         const { data: recentLogs, error: logsError } = await supabase

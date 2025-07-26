@@ -164,7 +164,7 @@ exports.handler = async (event, context) => {
                     .from('payments')
                     .select(`
                         id,
-                        username,
+                        email,
                         email,
                         amount,
                         currency,
@@ -276,7 +276,7 @@ exports.handler = async (event, context) => {
                     message: 'Payment manually approved',
                     details: { 
                         payment_id: paymentId,
-                        username: approvedPayment.username,
+                        email: approvedPayment.email,
                         amount: approvedPayment.amount,
                         admin_user: sessionCheck.payload.username
                     },
@@ -363,7 +363,7 @@ exports.handler = async (event, context) => {
                 // Get payment details before deletion for logging
                 const { data: paymentDetails, error: fetchError } = await supabase
                     .from('payments')
-                    .select('username, amount, payment_status')
+                    .select('email, amount, payment_status')
                     .eq('id', deletePaymentId)
                     .single();
                 
@@ -404,10 +404,10 @@ exports.handler = async (event, context) => {
                     message: 'Payment record deleted by admin',
                     details: {
                         deleted_payment_id: deletePaymentId,
-                        payment_username: paymentDetails?.username,
+                        payment_email: paymentDetails?.email,
                         payment_amount: paymentDetails?.amount,
                         payment_status: paymentDetails?.payment_status,
-                        admin_user: sessionCheck.payload.username,
+                        admin_user: sessionCheck.payload.email,
                         deletion_time: new Date().toISOString()
                     },
                     ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
@@ -544,10 +544,10 @@ exports.handler = async (event, context) => {
                         message: 'Admin settings updated',
                         details: {
                             updated_settings: Object.keys(updateSettingsData),
-                            admin_user: sessionCheck.payload.username || 'admin',
+                            admin_user: sessionCheck.payload.email || 'admin',
                             update_time: new Date().toISOString()
                         },
-                        user_email: sessionCheck.payload.username || 'admin@example.com',
+                        user_email: sessionCheck.payload.email || 'admin@example.com',
                         ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
                         user_agent: event.headers['user-agent']
                     });
