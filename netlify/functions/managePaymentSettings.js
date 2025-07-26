@@ -346,6 +346,83 @@ exports.handler = async (event, context) => {
                     })
                 };
 
+            case 'deletePayment':
+                const { paymentId: deletePaymentId } = actionData;
+                
+                if (!deletePaymentId) {
+                    return {
+                        statusCode: 400,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Payment ID is required'
+                        })
+                    };
+                }
+                
+                // Get payment details before deletion for logging
+                const { data: paymentDetails, error: fetchError } = await supabase
+                    .from('payments_new')
+                    .select('email, amount, payment_status')
+                    .eq('id', deletePaymentId)
+                    .single();
+                
+                if (fetchError) {
+                    console.error('Error fetching payment details:', fetchError);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error fetching payment details: ' + fetchError.message
+                        })
+                    };
+                }
+                
+                // Delete the payment record
+                const { error: deleteError } = await supabase
+                    .from('payments_new')
+                    .delete()
+                    .eq('id', deletePaymentId);
+                
+                if (deleteError) {
+                    console.error('Error deleting payment:', deleteError);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error deleting payment: ' + deleteError.message
+                        })
+                    };
+                }
+                
+                // Log the deletion
+                await supabase.from('logs_new').insert({
+                    log_type: 'admin',
+                    level: 'warning',
+                    message: 'Payment record deleted by admin',
+                    details: {
+                        deleted_payment_id: deletePaymentId,
+                        payment_email: paymentDetails?.email,
+                        payment_amount: paymentDetails?.amount,
+                        payment_status: paymentDetails?.payment_status,
+                        admin_user: sessionCheck.payload.username,
+                        deletion_time: new Date().toISOString()
+                    },
+                    ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                    user_agent: event.headers['user-agent']
+                });
+                
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        message: 'Payment record deleted successfully'
+                    })
+                };
+
             case 'testNotification':
                 const { email, type } = actionData;
                 

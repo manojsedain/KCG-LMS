@@ -75,7 +75,7 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <!-- PayPal Account Setup Guide -->
-        <div class="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-6 mb-8">
+        <div id="paypalSetupGuide" class="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-xl p-6 mb-8">
             <div class="flex items-start mb-6">
                 <i class="fas fa-info-circle text-3xl text-blue-400 mr-4 mt-1"></i>
                 <div>
@@ -467,16 +467,33 @@
                     const settings = data.settings;
                     
                     // Populate form fields
-                    document.getElementById('paypalClientId').value = settings.paypal_client_id || '';
-                    document.getElementById('paypalClientSecret').value = settings.paypal_client_secret || '';
-                    document.getElementById('paypalEnvironment').value = settings.paypal_environment || 'sandbox';
-                    document.getElementById('paymentEnabled').checked = settings.payment_enabled === 'true';
-                    document.getElementById('discountPrice').value = settings.discount_price || '36.00';
-                    document.getElementById('lifetimePrice').value = settings.lifetime_price || '68.00';
-                    document.getElementById('discountEndDate').value = settings.discount_end_date || '2025-08-31';
-                    document.getElementById('adminUsernames').value = settings.admin_usernames || 'admin,ADMIN';
-                    document.getElementById('developerEmail').value = settings.developer_email || '';
-                    document.getElementById('notificationEmail').value = settings.notification_email || '';
+                    document.getElementById('paypalClientId').value = settings.paypalClientId || '';
+                    document.getElementById('paypalClientSecret').value = settings.paypalClientSecret || '';
+                    document.getElementById('paypalEnvironment').value = settings.paypalEnvironment || 'sandbox';
+                    document.getElementById('paymentEnabled').checked = settings.paymentEnabled === 'true';
+                    document.getElementById('discountPrice').value = settings.discountPrice || '36.00';
+                    document.getElementById('lifetimePrice').value = settings.lifetimePrice || '68.00';
+                    document.getElementById('discountEndDate').value = settings.discountEndDate || '2025-08-31';
+                    document.getElementById('adminUsernames').value = settings.adminUsernames || 'admin,ADMIN';
+                    document.getElementById('developerEmail').value = settings.developerEmail || '';
+                    document.getElementById('notificationEmail').value = settings.notificationEmail || '';
+                    
+                    // Hide setup guide if PayPal is already configured
+                    const paypalConfigured = settings.paypalClientId && settings.paypalClientSecret;
+                    const setupGuide = document.getElementById('paypalSetupGuide');
+                    if (paypalConfigured && setupGuide) {
+                        setupGuide.style.display = 'none';
+                    }
+                    
+                    // Populate alternative payment methods
+                    document.getElementById('bankName').value = settings.alt_payment_bankName || '';
+                    document.getElementById('accountHolder').value = settings.alt_payment_accountHolder || '';
+                    document.getElementById('accountNumber').value = settings.alt_payment_accountNumber || '';
+                    document.getElementById('swiftCode').value = settings.alt_payment_swiftCode || '';
+                    document.getElementById('bitcoinAddress').value = settings.alt_payment_bitcoinAddress || '';
+                    document.getElementById('ethereumAddress').value = settings.alt_payment_ethereumAddress || '';
+                    document.getElementById('otherPaymentMethod').value = settings.alt_payment_otherPaymentMethod || '';
+                    document.getElementById('paymentInstructions').value = settings.alt_payment_paymentInstructions || '';
                 } else {
                     showToast('Failed to load settings: ' + data.message, 'error');
                 }
@@ -582,7 +599,12 @@
                                 </td>
                                 <td class="py-3 px-4">${new Date(payment.created_at).toLocaleDateString()}</td>
                                 <td class="py-3 px-4">
-                                    ${payment.payment_proof_url ? `<button onclick="viewPaymentProof('${payment.payment_proof_url}')" class="text-blue-400 hover:text-blue-300">View Proof</button>` : 'N/A'}
+                                    <div class="flex space-x-2">
+                                        ${payment.payment_proof_url ? `<button onclick="viewPaymentProof('${payment.payment_proof_url}')" class="text-blue-400 hover:text-blue-300 text-sm">View Proof</button>` : ''}
+                                        <button onclick="deletePayment('${payment.id}')" class="text-red-400 hover:text-red-300 text-sm" title="Delete Payment">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         `).join('')}
@@ -620,6 +642,36 @@
                 </div>
             `;
             document.body.appendChild(modal);
+        }
+        
+        // Delete payment record
+        async function deletePayment(paymentId) {
+            if (!confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'deletePayment',
+                        token: token,
+                        paymentId: paymentId
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Payment record deleted successfully', 'success');
+                    loadPayments(); // Reload the payments table
+                } else {
+                    showToast('Failed to delete payment: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Delete payment error:', error);
+                showToast('Failed to delete payment', 'error');
+            }
         }
 
         // Load notifications
