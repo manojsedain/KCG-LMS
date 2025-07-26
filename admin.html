@@ -23,8 +23,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     
     <style>
         :root {
@@ -412,23 +411,19 @@
                         </div>
                     </div>
                     
-                    <!-- Token Usage Charts -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                        <div class="glass rounded-xl p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-semibold">Daily Token Usage</h3>
-                                <select id="tokenPeriodSelect" class="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-sm">
-                                    <option value="7d">Last 7 Days</option>
-                                    <option value="30d">Last 30 Days</option>
-                                    <option value="90d">Last 90 Days</option>
-                                </select>
-                            </div>
-                            <canvas id="tokenUsageChart" width="400" height="200"></canvas>
+                    <!-- User Token Usage Table -->
+                    <div class="glass rounded-xl p-6 mb-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">User Token Usage</h3>
+                            <button onclick="loadUserTokenUsage()" class="bg-primary hover:bg-primary/80 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-refresh mr-1"></i>Refresh
+                            </button>
                         </div>
-                        
-                        <div class="glass rounded-xl p-6">
-                            <h3 class="text-lg font-semibold mb-4">Feature Usage Distribution</h3>
-                            <canvas id="featureUsageChart" width="400" height="200"></canvas>
+                        <div id="userTokenTable" class="space-y-2">
+                            <div class="text-center py-4 text-gray-400">
+                                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                <p>Loading user token usage...</p>
+                            </div>
                         </div>
                     </div>
                     
@@ -1374,8 +1369,9 @@
                 
                 if (data.success && data.dashboard) {
                     updateDashboardStats(data.dashboard.stats);
-                    updateDeviceChart(data.dashboard.analytics?.usageByDay);
                     updateRecentActivity(data.dashboard.recentLogs);
+                    // Load user token usage table
+                    loadUserTokenUsage();
                 } else {
                     console.error('Dashboard data error:', data.message);
                     showToast(data.message || 'Failed to load dashboard data', 'error');
@@ -3442,9 +3438,6 @@ function switchNotificationTab(tab) {
         
         // ===== TOKEN USAGE TRACKING FUNCTIONS =====
         
-        let tokenUsageChart = null;
-        let featureUsageChart = null;
-        
         async function loadTokenUsage(period = '7d') {
             try {
                 const session = JSON.parse(localStorage.getItem('adminSession'));
@@ -3502,148 +3495,80 @@ function switchNotificationTab(tab) {
         }
         
         function updateTokenUsageCharts(data) {
-            const charts = data.charts || {};
-            
-            // Update daily usage chart
-            updateDailyTokenChart(charts.dailyUsage || []);
-            
-            // Update feature usage chart
-            updateFeatureUsageChart(charts.featureUsage || []);
+            // Load the simple user token table instead of charts
+            loadUserTokenUsage();
         }
         
-        function updateDailyTokenChart(dailyData) {
-            const chartElement = document.getElementById('tokenUsageChart');
-            if (!chartElement) {
-                console.warn('Token usage chart element not found, skipping chart update');
-                return;
-            }
+        // Load and display user token usage in a simple table
+        async function loadUserTokenUsage() {
+            const container = document.getElementById('userTokenTable');
             
-            // Destroy existing chart FIRST
-            if (tokenUsageChart && typeof tokenUsageChart.destroy === 'function') {
-                tokenUsageChart.destroy();
-                tokenUsageChart = null;
-            }
-            
-            // CRITICAL: Reset canvas dimensions to prevent accumulation
-            chartElement.width = 400;
-            chartElement.height = 200;
-            chartElement.style.width = '400px';
-            chartElement.style.height = '200px';
-            
-            const ctx = chartElement.getContext('2d');
-            if (!ctx) {
-                console.warn('Failed to get 2d context for token usage chart');
-                return;
-            }
-            
-            const labels = dailyData.map(item => {
-                const date = new Date(item.date);
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            });
-            const values = dailyData.map(item => item.tokens);
-            
-            tokenUsageChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Tokens Used',
-                        data: values,
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
+            try {
+                const session = JSON.parse(localStorage.getItem('adminSession'));
+                if (!session || !session.token) {
+                    throw new Error('No valid session found');
+                }
+                
+                container.innerHTML = `
+                    <div class="text-center py-4 text-gray-400">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading user token usage...</p>
+                    </div>
+                `;
+                
+                const response = await fetch('/.netlify/functions/getTokenUsage', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.7)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: 'rgba(255, 255, 255, 0.7)'
-                            }
-                        }
-                    }
+                    body: JSON.stringify({
+                        action: 'getUserTokenUsage',
+                        token: session.token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.users && result.users.length > 0) {
+                    const html = result.users.map((user, index) => `
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                    <span class="text-sm font-bold text-blue-400">${index + 1}</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-white">${user.email}</p>
+                                    <p class="text-xs text-gray-400">Last active: ${user.last_active || 'Unknown'}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold text-blue-400">${user.token_count.toLocaleString()}</p>
+                                <p class="text-xs text-gray-400">tokens</p>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-users text-4xl mb-4"></i>
+                            <p>No user token usage data available</p>
+                        </div>
+                    `;
                 }
-            });
-        }
-        
-        function updateFeatureUsageChart(featureData) {
-            const chartElement = document.getElementById('featureUsageChart');
-            if (!chartElement) {
-                console.warn('Feature usage chart element not found, skipping chart update');
-                return;
+            } catch (error) {
+                console.error('Load user token usage error:', error);
+                container.innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                        <p>Failed to load user token usage</p>
+                        <button onclick="loadUserTokenUsage()" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+                            Retry
+                        </button>
+                    </div>
+                `;
             }
-            
-            // Destroy existing chart FIRST
-            if (featureUsageChart && typeof featureUsageChart.destroy === 'function') {
-                featureUsageChart.destroy();
-                featureUsageChart = null;
-            }
-            
-            // CRITICAL: Reset canvas dimensions to prevent accumulation
-            chartElement.width = 400;
-            chartElement.height = 400;
-            chartElement.style.width = '400px';
-            chartElement.style.height = '400px';
-            
-            const ctx = chartElement.getContext('2d');
-            if (!ctx) {
-                console.warn('Failed to get 2d context for feature usage chart');
-                return;
-            }
-            
-            const labels = featureData.map(item => item.feature);
-            const values = featureData.map(item => item.tokens);
-            const colors = [
-                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-                '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
-            ];
-            
-            featureUsageChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colors.slice(0, labels.length),
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                usePointStyle: true,
-                                padding: 15
-                            }
-                        }
-                    }
-                }
-            });
         }
         
         function updateTopUsersTable(topUsers) {
@@ -3831,19 +3756,8 @@ function switchNotificationTab(tab) {
         
         // Initialize token usage tracking
         function initTokenUsageTracking() {
-            // Load initial token usage data
-            loadTokenUsage('7d');
-            
-            // Add period selector event listener
-            const periodSelect = document.getElementById('tokenPeriodSelect');
-            if (periodSelect) {
-                periodSelect.addEventListener('change', (e) => {
-                    loadTokenUsage(e.target.value);
-                });
-            }
-            
-            // Removed automatic refresh to prevent memory leak
-            // Token usage data will only refresh when user manually changes period
+            // Load user token usage table instead of charts
+            loadUserTokenUsage();
         }
         
         // ===== THEME MANAGEMENT FUNCTIONS =====
