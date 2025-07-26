@@ -3776,11 +3776,8 @@ function switchNotificationTab(tab) {
                 });
             }
             
-            // Refresh token usage data every 5 minutes
-            setInterval(() => {
-                const currentPeriod = document.getElementById('tokenPeriodSelect')?.value || '7d';
-                loadTokenUsage(currentPeriod);
-            }, 5 * 60 * 1000);
+            // Removed automatic refresh to prevent memory leak
+            // Token usage data will only refresh when user manually changes period
         }
         
         // ===== THEME MANAGEMENT FUNCTIONS =====
