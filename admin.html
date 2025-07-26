@@ -3836,6 +3836,244 @@ function switchNotificationTab(tab) {
             }
         }
         
+        // Initialize admin panel buttons and event handlers
+        function initAdminPanelButtons() {
+            // Notification tab switching
+            const notificationTabs = document.querySelectorAll('.notification-tab');
+            notificationTabs.forEach(tab => {
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Update active tab
+                    notificationTabs.forEach(t => {
+                        t.classList.remove('active', 'text-primary', 'border-primary');
+                        t.classList.add('text-gray-400', 'border-transparent');
+                    });
+                    
+                    this.classList.remove('text-gray-400', 'border-transparent');
+                    this.classList.add('active', 'text-primary', 'border-primary');
+                    
+                    // Show/hide content
+                    const targetContent = this.id === 'notificationsTab' ? 'notificationsContent' : 'paymentContent';
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(targetContent).classList.remove('hidden');
+                });
+            });
+            
+            // Send notification button
+            const sendNotificationBtn = document.getElementById('sendNotificationBtn');
+            if (sendNotificationBtn) {
+                sendNotificationBtn.addEventListener('click', sendCustomNotification);
+            }
+            
+            // Preview notification button
+            const previewNotificationBtn = document.getElementById('previewNotificationBtn');
+            if (previewNotificationBtn) {
+                previewNotificationBtn.addEventListener('click', previewNotification);
+            }
+            
+            // Test email button
+            const testEmailBtn = document.getElementById('testEmailBtn');
+            if (testEmailBtn) {
+                testEmailBtn.addEventListener('click', sendTestEmail);
+            }
+            
+            // Save email config button
+            const saveEmailConfigBtn = document.getElementById('saveEmailConfigBtn');
+            if (saveEmailConfigBtn) {
+                saveEmailConfigBtn.addEventListener('click', saveEmailConfiguration);
+            }
+            
+            // Custom email recipient toggle
+            const notificationRecipient = document.getElementById('notificationRecipient');
+            if (notificationRecipient) {
+                notificationRecipient.addEventListener('change', function() {
+                    const customEmailDiv = document.getElementById('customEmailDiv');
+                    if (this.value === 'custom') {
+                        customEmailDiv.classList.remove('hidden');
+                    } else {
+                        customEmailDiv.classList.add('hidden');
+                    }
+                });
+            }
+        }
+        
+        // Send custom notification
+        async function sendCustomNotification() {
+            const recipient = document.getElementById('notificationRecipient').value;
+            const customEmail = document.getElementById('customEmail').value;
+            const subject = document.getElementById('notificationSubject').value;
+            const message = document.getElementById('notificationMessage').value;
+            
+            if (!subject || !message) {
+                showToast('Please fill in subject and message', 'error');
+                return;
+            }
+            
+            if (recipient === 'custom' && !customEmail) {
+                showToast('Please enter custom email address', 'error');
+                return;
+            }
+            
+            const session = JSON.parse(localStorage.getItem('adminSession'));
+            if (!session?.token) {
+                showToast('Admin session expired', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'testNotification',
+                        token: session.token,
+                        email: recipient === 'custom' ? customEmail : 'admin@example.com',
+                        type: 'custom'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Notification sent successfully!', 'success');
+                    // Clear form
+                    document.getElementById('notificationSubject').value = '';
+                    document.getElementById('notificationMessage').value = '';
+                    document.getElementById('customEmail').value = '';
+                } else {
+                    showToast('Failed to send notification: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Send notification error:', error);
+                showToast('Failed to send notification', 'error');
+            }
+        }
+        
+        // Preview notification
+        function previewNotification() {
+            const recipient = document.getElementById('notificationRecipient').value;
+            const customEmail = document.getElementById('customEmail').value;
+            const subject = document.getElementById('notificationSubject').value;
+            const message = document.getElementById('notificationMessage').value;
+            
+            if (!subject || !message) {
+                showToast('Please fill in subject and message to preview', 'error');
+                return;
+            }
+            
+            const recipientEmail = recipient === 'custom' ? customEmail : 
+                                 recipient === 'admin' ? 'admin@example.com' : 'all_users@example.com';
+            
+            // Create preview modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-50';
+            modal.innerHTML = `
+                <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-white">📧 Notification Preview</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="bg-white/10 rounded-lg p-4">
+                            <div class="text-sm text-gray-400 mb-2">To: ${recipientEmail}</div>
+                            <div class="text-sm text-gray-400 mb-2">Subject: ${subject}</div>
+                            <div class="border-t border-white/20 pt-4 mt-4">
+                                <div class="text-white whitespace-pre-wrap">${message}</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <button onclick="this.closest('.fixed').remove()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // Send test email
+        async function sendTestEmail() {
+            const adminEmail = document.getElementById('adminEmail').value;
+            
+            if (!adminEmail) {
+                showToast('Please enter admin email address', 'error');
+                return;
+            }
+            
+            const session = JSON.parse(localStorage.getItem('adminSession'));
+            if (!session?.token) {
+                showToast('Admin session expired', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'testNotification',
+                        token: session.token,
+                        email: adminEmail,
+                        type: 'test'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Test email sent successfully!', 'success');
+                } else {
+                    showToast('Failed to send test email: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Test email error:', error);
+                showToast('Failed to send test email', 'error');
+            }
+        }
+        
+        // Save email configuration
+        async function saveEmailConfiguration() {
+            const emailConfig = {
+                emailjs_service_id: document.getElementById('emailjsServiceId').value,
+                emailjs_template_id: document.getElementById('emailjsTemplateId').value,
+                emailjs_public_key: document.getElementById('emailjsPublicKey').value,
+                admin_email: document.getElementById('adminEmail').value
+            };
+            
+            const session = JSON.parse(localStorage.getItem('adminSession'));
+            if (!session?.token) {
+                showToast('Admin session expired', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateSettings',
+                        token: session.token,
+                        settings: emailConfig
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Email configuration saved successfully!', 'success');
+                } else {
+                    showToast('Failed to save configuration: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Save email config error:', error);
+                showToast('Failed to save configuration', 'error');
+            }
+        }
+        
         // Initialize admin panel on page load
         document.addEventListener('DOMContentLoaded', function() {
             // Check if already logged in with improved session validation
