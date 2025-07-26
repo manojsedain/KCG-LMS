@@ -42,16 +42,42 @@ exports.handler = async (event, context) => {
         // Parse multipart form data
         const result = await multipart.parse(event);
         
-        const { username, email, deviceHwid, paymentMethod, transactionId, notes } = result;
+        const { email, amount } = result;
         
         // Validate required fields
-        if (!username || !email || !deviceHwid) {
+        if (!email || !amount) {
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Username, email, and device HWID are required' 
+                    message: 'Email and amount are required' 
+                })
+            };
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Please enter a valid email address' 
+                })
+            };
+        }
+        
+        // Validate amount
+        const paymentAmount = parseFloat(amount);
+        if (isNaN(paymentAmount) || paymentAmount <= 0) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Please enter a valid payment amount' 
                 })
             };
         }
@@ -101,42 +127,21 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Get current pricing
-        const { data: settings } = await supabase
-            .from('payment_settings')
-            .select('setting_key, setting_value')
-            .in('setting_key', ['discount_price', 'lifetime_price', 'discount_end_date']);
-        
-        const settingsMap = {};
-        settings?.forEach(setting => {
-            settingsMap[setting.setting_key] = setting.setting_value;
-        });
-        
-        const discountEndDate = new Date(settingsMap.discount_end_date || '2025-08-31');
-        const currentDate = new Date();
-        const isDiscountPeriod = currentDate <= discountEndDate;
-        const amount = isDiscountPeriod 
-            ? parseFloat(settingsMap.discount_price || '36.00')
-            : parseFloat(settingsMap.lifetime_price || '68.00');
-
         // Convert image to data URL for storage
         const paymentProofUrl = fileToDataURL(file.content, fileType);
 
         // Create payment record with proof
         const { data: payment, error: paymentError } = await supabase
-            .from('payments')
+            .from('payments_new')
             .insert({
-                username,
                 email,
-                amount,
+                amount: paymentAmount,
                 currency: 'USD',
-                payment_method: paymentMethod || 'manual',
-                paypal_transaction_id: transactionId,
+                payment_method: 'manual_upload',
                 payment_status: 'pending_verification',
-                subscription_type: isDiscountPeriod ? 'discount' : 'lifetime',
+                subscription_type: 'manual',
                 payment_proof_url: paymentProofUrl,
-                device_hwid: deviceHwid,
-                notes: notes || 'Manual payment with proof uploaded'
+                notes: 'Manual payment with proof uploaded'
             })
             .select()
             .single();
@@ -153,15 +158,6 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Update device with payment info (but keep as pending until admin approves)
-        await supabase
-            .from('devices')
-            .update({
-                payment_id: payment.id,
-                payment_status: 'pending_verification'
-            })
-            .eq('hwid', deviceHwid);
-
         // Send notification to developer/admin
         const { data: devEmail } = await supabase
             .from('payment_settings')
@@ -170,30 +166,29 @@ exports.handler = async (event, context) => {
             .single();
 
         if (devEmail?.setting_value) {
-            await supabase.from('notification_logs').insert({
+            await supabase.from('notification_logs_new').insert({
                 notification_type: 'payment_proof_uploaded',
                 recipient_email: devEmail.setting_value,
                 subject: 'Payment Proof Uploaded - Verification Required',
-                message: `Payment proof uploaded by ${username} (${email}) for $${amount}. Transaction ID: ${transactionId || 'N/A'}. Device HWID: ${deviceHwid}. Please verify the payment and approve device access.`,
+                message: `Payment proof uploaded by ${email} for $${paymentAmount}. Please verify the payment and approve access.`,
                 payment_id: payment.id,
                 status: 'pending'
             });
         }
 
         // Log the upload
-        await supabase.from('logs').insert({
+        await supabase.from('logs_new').insert({
             log_type: 'payment',
             level: 'info',
             message: 'Payment proof uploaded',
             details: { 
-                username,
                 email,
-                amount,
-                payment_method: paymentMethod || 'manual',
-                transaction_id: transactionId,
+                amount: paymentAmount,
+                payment_method: 'manual_upload',
                 file_size: file.content.length,
                 file_type: fileType
             },
+            user_email: email,
             ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
             user_agent: event.headers['user-agent']
         });
@@ -203,9 +198,9 @@ exports.handler = async (event, context) => {
             headers,
             body: JSON.stringify({
                 success: true,
-                message: 'Payment proof uploaded successfully. Your payment will be verified and device approved within 24 hours.',
+                message: 'Payment proof uploaded successfully. Your payment will be verified within 24 hours.',
                 paymentId: payment.id,
-                amount: amount,
+                amount: paymentAmount,
                 status: 'pending_verification'
             })
         };

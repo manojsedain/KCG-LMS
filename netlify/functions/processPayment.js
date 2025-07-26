@@ -300,6 +300,21 @@ exports.handler = async (event, context) => {
                             })
                             .eq('hwid', payment.device_hwid);
                         
+                        // Send Gmail notification to buyer
+                        try {
+                            await fetch(`${process.env.URL || 'https://your-site.netlify.app'}/.netlify/functions/sendGmailNotification`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    email: payment.email,
+                                    paymentId: payment.id,
+                                    transactionType: 'payment_success'
+                                })
+                            });
+                        } catch (gmailError) {
+                            console.error('Failed to send Gmail notification:', gmailError);
+                        }
+                        
                         // Send notification to developer
                         const { data: devEmail } = await supabase
                             .from('payment_settings')
@@ -311,7 +326,7 @@ exports.handler = async (event, context) => {
                             await sendNotificationEmail(supabase, 'payment_success', {
                                 email: devEmail.setting_value,
                                 subject: 'New Payment Received - Device Approved',
-                                message: `Payment received from ${payment.email} for $${payment.amount}. Device HWID: ${payment.device_hwid}. Device has been automatically approved for access.`,
+                                message: `Payment received from ${payment.email} for $${payment.amount}. Device has been automatically approved for access.`,
                                 payment_id: payment.id
                             });
                         }

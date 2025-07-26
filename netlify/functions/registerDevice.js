@@ -79,10 +79,10 @@ exports.handler = async (event, context) => {
             };
         }
         
-        const { username, hwid, fingerprint, deviceName, browserInfo, osInfo } = requestData;
+        const { email, hwid, fingerprint, deviceName, browserInfo, osInfo } = requestData;
         
         console.log('Parsed request data:', {
-            username: username ? username.substring(0, 20) + '...' : 'missing',
+            email: email ? email.substring(0, 20) + '...' : 'missing',
             hwid: hwid ? hwid.substring(0, 20) + '...' : 'missing',
             fingerprint: fingerprint ? fingerprint.substring(0, 20) + '...' : 'missing',
             deviceName: deviceName || 'not provided',
@@ -91,25 +91,38 @@ exports.handler = async (event, context) => {
         });
 
         // Validate required fields
-        if (!username || !hwid || !fingerprint) {
+        if (!email || !hwid || !fingerprint) {
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Username, HWID, and fingerprint are required' 
+                    message: 'Email, HWID, and fingerprint are required' 
+                })
+            };
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                    success: false, 
+                    message: 'Please enter a valid email address' 
                 })
             };
         }
         
         // Validate field lengths to prevent database errors and index size limits
-        if (username.length > 50) {
+        if (email.length > 255) {
             return {
                 statusCode: 400,
                 headers,
                 body: JSON.stringify({ 
                     success: false, 
-                    message: 'Username too long (max 50 characters)' 
+                    message: 'Email too long (max 255 characters)' 
                 })
             };
         }
@@ -190,14 +203,14 @@ exports.handler = async (event, context) => {
         // Initialize Supabase client
         const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_SERVICE_ROLE_KEY);
 
-        // Check if device already exists (using hwid, fingerprint, AND username for uniqueness)
+        // Check if device already exists (using hwid, fingerprint, AND email for uniqueness)
         // This prevents the same device from being registered multiple times for the same user
         const { data: existingDevice, error: checkError } = await supabase
-            .from('devices')
-            .select('id, username, status, usage_count, user_id')
+            .from('devices_new')
+            .select('id, email, status, usage_count')
             .eq('hwid', processedHwid)
             .eq('fingerprint', processedFingerprint)
-            .eq('username', username)
+            .eq('email', email)
             .single();
 
         if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -216,7 +229,7 @@ exports.handler = async (event, context) => {
         if (existingDevice) {
             // Update last_used timestamp
             await supabase
-                .from('devices')
+                .from('devices_new')
                 .update({ 
                     last_used: new Date().toISOString(),
                     usage_count: existingDevice.usage_count + 1
@@ -224,17 +237,17 @@ exports.handler = async (event, context) => {
                 .eq('id', existingDevice.id);
 
             // Log device access attempt
-            await supabase.from('logs').insert({
+            await supabase.from('logs_new').insert({
                 log_type: 'device',
                 level: 'info',
                 message: 'Existing device access attempt',
                 details: { 
-                    username,
+                    email,
                     deviceName,
                     status: existingDevice.status,
                     device_id: existingDevice.id
                 },
-                user_id: existingDevice.user_id,
+                user_email: email,
                 device_id: existingDevice.id,
                 ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
                 user_agent: event.headers['user-agent']
@@ -253,11 +266,10 @@ exports.handler = async (event, context) => {
         }
 
         // Create or get user
-        let userId = null;
         const { data: existingUser, error: userCheckError } = await supabase
-            .from('users')
+            .from('users_new')
             .select('id')
-            .eq('username', username)
+            .eq('email', email)
             .single();
 
         if (userCheckError && userCheckError.code !== 'PGRST116') {
@@ -272,13 +284,14 @@ exports.handler = async (event, context) => {
             };
         }
 
+        let userId = null;
         if (existingUser) {
             userId = existingUser.id;
         } else {
             // Create new user
             const { data: newUser, error: userCreateError } = await supabase
-                .from('users')
-                .insert({ username })
+                .from('users_new')
+                .insert({ email })
                 .select('id')
                 .single();
 
@@ -320,7 +333,7 @@ exports.handler = async (event, context) => {
 
         // Check auto-approval setting
         const { data: autoApproveData, error: settingError } = await supabase
-            .from('admin_settings')
+            .from('payment_settings')
             .select('setting_value')
             .eq('setting_key', 'auto_approve_devices')
             .single();
@@ -330,17 +343,15 @@ exports.handler = async (event, context) => {
 
         // Create new device with duplicate handling using processed values
         const { data: newDevice, error: deviceError } = await supabase
-            .from('devices')
+            .from('devices_new')
             .insert({
-                user_id: userId,
-                username,
+                email,
                 hwid: processedHwid,
                 fingerprint: processedFingerprint,
                 device_name: deviceName || 'Unknown Device',
                 browser_info: browserInfo || event.headers['user-agent'] || 'Unknown Browser',
                 os_info: osInfo || 'Unknown OS',
                 status: deviceStatus,
-                aes_key: aesKeyData,
                 approved_at: autoApprove ? new Date().toISOString() : null,
                 approved_by: autoApprove ? 'system' : null
             })
@@ -356,10 +367,10 @@ exports.handler = async (event, context) => {
                 
                 // Fetch the existing device that caused the conflict
                 const { data: existingDevice, error: fetchError } = await supabase
-                    .from('devices')
+                    .from('devices_new')
                     .select('*')
-                    .eq('hwid', hwid)
-                    .eq('fingerprint', fingerprint)
+                    .eq('hwid', processedHwid)
+                    .eq('fingerprint', processedFingerprint)
                     .single();
                 
                 if (fetchError) {
@@ -376,7 +387,7 @@ exports.handler = async (event, context) => {
                 
                 // Update the existing device's last_used timestamp
                 await supabase
-                    .from('devices')
+                    .from('devices_new')
                     .update({ 
                         last_used: new Date().toISOString(),
                         usage_count: existingDevice.usage_count + 1
@@ -384,17 +395,17 @@ exports.handler = async (event, context) => {
                     .eq('id', existingDevice.id);
                 
                 // Log device access attempt
-                await supabase.from('logs').insert({
+                await supabase.from('logs_new').insert({
                     log_type: 'device',
                     level: 'info',
                     message: 'Duplicate device registration attempt - using existing device',
                     details: { 
-                        username,
+                        email,
                         deviceName,
                         status: existingDevice.status,
                         device_id: existingDevice.id
                     },
-                    user_id: existingDevice.user_id,
+                    user_email: email,
                     device_id: existingDevice.id,
                     ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
                     user_agent: event.headers['user-agent']
@@ -425,26 +436,25 @@ exports.handler = async (event, context) => {
 
         // Create device approval request if not auto-approved
         if (!autoApprove) {
-            await supabase.from('device_requests').insert({
+            await supabase.from('device_requests_new').insert({
                 device_id: newDevice.id,
-                username,
-                request_type: 'new',
+                request_type: 'approval',
                 status: 'pending'
             });
         }
 
         // Log device registration
-        await supabase.from('logs').insert({
+        await supabase.from('logs_new').insert({
             log_type: 'device',
             level: 'info',
             message: autoApprove ? 'New device auto-approved' : 'New device registered - pending approval',
             details: { 
-                username,
+                email,
                 deviceName,
-                hwid: hwid.substring(0, 10) + '...',
+                hwid: processedHwid.substring(0, 10) + '...',
                 auto_approved: autoApprove
             },
-            user_id: userId,
+            user_email: email,
             device_id: newDevice.id,
             ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
             user_agent: event.headers['user-agent']
