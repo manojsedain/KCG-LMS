@@ -444,6 +444,62 @@ exports.handler = async (event, context) => {
                     })
                 };
 
+            case 'getPayments':
+                const { data: paymentsData, error: paymentsDataError } = await supabase
+                    .from('payments')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (paymentsDataError) {
+                    console.error('Error fetching payments:', paymentsDataError);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error fetching payments: ' + paymentsDataError.message
+                        })
+                    };
+                }
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        payments: paymentsData || []
+                    })
+                };
+
+            case 'getNotifications':
+                const { data: notificationsData, error: notificationsDataError } = await supabase
+                    .from('notification_logs')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (notificationsDataError) {
+                    console.error('Error fetching notifications:', notificationsDataError);
+                    return {
+                        statusCode: 500,
+                        headers,
+                        body: JSON.stringify({
+                            success: false,
+                            message: 'Error fetching notifications: ' + notificationsDataError.message
+                        })
+                    };
+                }
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify({
+                        success: true,
+                        notifications: notificationsData || []
+                    })
+                };
+
             default:
                 return {
                     statusCode: 400,
