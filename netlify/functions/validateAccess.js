@@ -178,9 +178,11 @@ document.head.appendChild(script);`
         // For non-admin users, check payment
         console.log(`Checking payment for non-admin user: ${email}`);
         
+        let userPayment = null;
+        
         if (!isAdmin) {
             // Check if user has valid payment
-            const { data: userPayment } = await supabase
+            const { data: paymentData } = await supabase
                 .from('payments')
                 .select('id, payment_status, subscription_type, expires_at')
                 .eq('email', email)
@@ -189,7 +191,10 @@ document.head.appendChild(script);`
                 .limit(1)
                 .single();
             
+            userPayment = paymentData;
+            
             if (!userPayment) {
+                console.log(`No valid payment found for user: ${email}`);
                 // No payment found - return payment required script
                 const paymentRequiredScript = `// ==UserScript==
 // @name         LMS AI Assistant - Payment Required
