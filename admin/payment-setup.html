@@ -860,58 +860,60 @@
                 });
                 
                 const result = await response.json();
+                console.log('Load settings result:', result);
+                
                 if (result.success && result.settings) {
                     const settings = result.settings;
                     
-                    // Populate PayPal settings
-                    if (settings.paypal_client_id) {
-                        document.getElementById('paypalClientId').value = settings.paypal_client_id;
-                    }
-                    if (settings.paypal_client_secret) {
-                        document.getElementById('paypalClientSecret').value = settings.paypal_client_secret;
-                    }
-                    if (settings.paypal_environment) {
-                        document.getElementById('paypalEnvironment').value = settings.paypal_environment;
-                    }
-                    if (settings.payment_enabled !== undefined) {
-                        document.getElementById('paymentEnabled').checked = settings.payment_enabled === 'true';
-                    }
+                    // PayPal settings - map backend field names to form fields
+                    if (settings.paypal_client_id) document.getElementById('paypalClientId').value = settings.paypal_client_id;
+                    if (settings.paypal_client_secret) document.getElementById('paypalClientSecret').value = settings.paypal_client_secret;
+                    if (settings.paypal_environment) document.getElementById('paypalEnvironment').value = settings.paypal_environment;
+                    if (settings.payment_enabled !== undefined) document.getElementById('paymentEnabled').checked = settings.payment_enabled === 'true';
                     
-                    // Update connection status if PayPal is configured
+                    // Admin settings
+                    if (settings.admin_emails) document.getElementById('adminEmails').value = settings.admin_emails;
+                    
+                    // Pricing settings
+                    if (settings.discount_price) document.getElementById('discountPrice').value = settings.discount_price;
+                    if (settings.lifetime_price) document.getElementById('lifetimePrice').value = settings.lifetime_price;
+                    if (settings.discount_end_date) document.getElementById('discountEndDate').value = settings.discount_end_date;
+                    
+                    // Notification settings
+                    if (settings.notification_email) document.getElementById('notificationEmail').value = settings.notification_email;
+                    if (settings.emailjs_service_id) document.getElementById('emailjsServiceId').value = settings.emailjs_service_id;
+                    if (settings.emailjs_template_id) document.getElementById('emailjsTemplateId').value = settings.emailjs_template_id;
+                    if (settings.emailjs_user_id) document.getElementById('emailjsUserId').value = settings.emailjs_user_id;
+                    
+                    console.log('Settings loaded successfully:', settings);
+                    
+                    // Auto-test PayPal connection if credentials are present
                     if (settings.paypal_client_id && settings.paypal_client_secret) {
-                        // Automatically test connection when credentials are present
-                        await testPayPalConnectionSilent();
+                        setTimeout(testPayPalConnection, 1000);
                     }
-                    
-                    // Load alternative payment methods
-                    if (settings.bank_name) document.getElementById('bankName').value = settings.bank_name;
-                    if (settings.account_holder) document.getElementById('accountHolder').value = settings.account_holder;
-                    if (settings.account_number) document.getElementById('accountNumber').value = settings.account_number;
-                    if (settings.swift_code) document.getElementById('swiftCode').value = settings.swift_code;
-                    if (settings.bitcoin_address) document.getElementById('bitcoinAddress').value = settings.bitcoin_address;
-                    if (settings.ethereum_address) document.getElementById('ethereumAddress').value = settings.ethereum_address;
-                    if (settings.other_payment_method) document.getElementById('otherPaymentMethod').value = settings.other_payment_method;
-                    if (settings.payment_instructions) document.getElementById('paymentInstructions').value = settings.payment_instructions;
+                } else {
+                    console.error('Failed to load settings:', result.message);
                 }
             } catch (error) {
                 console.error('Load settings error:', error);
-                showToast('Failed to load settings', 'error');
             }
         }
         
         // Save PayPal settings
         async function savePayPalSettings() {
             const settings = {
-                paypalClientId: document.getElementById('paypalClientId').value,
-                paypalClientSecret: document.getElementById('paypalClientSecret').value,
-                paypalEnvironment: document.getElementById('paypalEnvironment').value,
-                paymentEnabled: document.getElementById('paymentEnabled').checked
+                paypal_client_id: document.getElementById('paypalClientId').value,
+                paypal_client_secret: document.getElementById('paypalClientSecret').value,
+                paypal_environment: document.getElementById('paypalEnvironment').value,
+                payment_enabled: document.getElementById('paymentEnabled').checked ? 'true' : 'false'
             };
             
-            if (!settings.paypalClientId || !settings.paypalClientSecret) {
+            if (!settings.paypal_client_id || !settings.paypal_client_secret) {
                 showToast('Please enter both PayPal Client ID and Secret', 'error');
                 return;
             }
+            
+            console.log('Saving PayPal settings:', settings);
             
             try {
                 const response = await fetch('/.netlify/functions/managePaymentSettings', {
@@ -925,8 +927,14 @@
                 });
                 
                 const result = await response.json();
+                console.log('PayPal save result:', result);
+                
                 if (result.success) {
                     showToast('PayPal settings saved successfully!', 'success');
+                    // Reload settings to confirm they were saved
+                    setTimeout(() => {
+                        loadSettings();
+                    }, 1000);
                 } else {
                     showToast('Failed to save settings: ' + result.message, 'error');
                 }
@@ -1098,6 +1106,39 @@
             } catch (error) {
                 console.error('Save alt payments error:', error);
                 showToast('Failed to save payment methods', 'error');
+            }
+        }
+        
+        // Save admin settings
+        async function saveAdminSettings() {
+            const settings = {
+                admin_emails: document.getElementById('adminEmails').value
+            };
+            
+            console.log('Saving admin settings:', settings);
+            
+            try {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateSettings',
+                        token: token,
+                        settings: settings
+                    })
+                });
+                
+                const result = await response.json();
+                console.log('Admin save result:', result);
+                
+                if (result.success) {
+                    showToast('Admin settings saved successfully!', 'success');
+                } else {
+                    showToast('Failed to save settings: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Save admin settings error:', error);
+                showToast('Failed to save admin settings', 'error');
             }
         }
         

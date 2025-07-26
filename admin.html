@@ -1372,12 +1372,33 @@
         }
 
         function updateDashboardStats(stats) {
-            if (stats) {
-                document.getElementById('activeDevicesCount').textContent = stats.activeDevices || 0;
-                document.getElementById('currentVersion').textContent = stats.currentVersion || 'v1.0.0';
-                document.getElementById('systemStatus').textContent = stats.systemStatus || 'Online';
-                document.getElementById('lastUpdate').textContent = stats.lastUpdate || 'Today';
+            if (!stats) {
+                console.warn('No stats provided to updateDashboardStats');
+                return;
             }
+            
+            // Safely update each element with null checks
+            const activeDevicesEl = document.getElementById('activeDevicesCount');
+            if (activeDevicesEl) {
+                activeDevicesEl.textContent = stats.activeDevices || 0;
+            }
+            
+            const currentVersionEl = document.getElementById('currentVersion');
+            if (currentVersionEl) {
+                currentVersionEl.textContent = stats.currentVersion || 'v1.0.0';
+            }
+            
+            const systemStatusEl = document.getElementById('systemStatus');
+            if (systemStatusEl) {
+                systemStatusEl.textContent = stats.systemStatus || 'Online';
+            }
+            
+            const lastUpdateEl = document.getElementById('lastUpdate');
+            if (lastUpdateEl) {
+                lastUpdateEl.textContent = stats.lastUpdate || 'Today';
+            }
+            
+            console.log('Dashboard stats updated successfully:', stats);
         }
 
         function updateDeviceChart(deviceActivity) {

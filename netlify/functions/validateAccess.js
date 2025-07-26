@@ -117,15 +117,66 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // Check if user is admin or has paid for access
-        const { data: adminSettings } = await supabase
-            .from('payment_settings')
-            .select('setting_value')
-            .eq('setting_key', 'admin_emails')
-            .single();
+        // Check if user is admin first
+        let adminEmails = ['manojsedain40@gmail.com']; // Default admin email
         
-        const adminEmails = (adminSettings?.setting_value || 'manojsedain40@gmail.com').split(',').map(e => e.trim());
+        try {
+            const { data: adminSettings } = await supabase
+                .from('payment_settings')
+                .select('setting_value')
+                .eq('setting_key', 'admin_emails')
+                .single();
+            
+            if (adminSettings?.setting_value) {
+                adminEmails = adminSettings.setting_value.split(',').map(e => e.trim());
+            }
+        } catch (error) {
+            console.log('Using default admin emails:', error);
+        }
+        
         const isAdmin = adminEmails.includes(email);
+        
+        // If admin, return success immediately
+        if (isAdmin) {
+            console.log(`Admin access granted for: ${email}`);
+            
+            // Log successful admin access
+            await supabase.from('logs_new').insert({
+                log_type: 'security',
+                level: 'info',
+                message: 'Admin access granted',
+                details: { email, admin: true },
+                user_email: email,
+                ip_address: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+                user_agent: event.headers['user-agent']
+            });
+            
+            return {
+                statusCode: 200,
+                headers,
+                body: `// ==UserScript==
+// @name         LMS AI Assistant Device Validator
+// @namespace    https://wrongnumber.netlify.app/
+// @version      1.0.0
+// @description  Admin access - device validation bypassed
+// @author       Developer
+// @match        *://*/*
+// @grant        none
+// ==/UserScript==
+
+console.log('🔐 Admin access granted - loading main script...');
+
+// Load main script immediately for admin
+const script = document.createElement('script');
+script.src = '/.netlify/functions/downloadScript';
+script.onload = () => console.log('✅ Admin script loaded successfully');
+script.onerror = () => console.error('❌ Failed to load admin script');
+document.head.appendChild(script);`
+            };
+        }
+        
+        // For non-admin users, check payment
+        console.log(`Checking payment for non-admin user: ${email}`);
         
         if (!isAdmin) {
             // Check if user has valid payment
