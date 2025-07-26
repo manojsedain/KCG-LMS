@@ -1283,23 +1283,65 @@
             paymentSection.style.display = 'block';
             paymentSection.scrollIntoView({ behavior: 'smooth' });
             
-            // Load current pricing
+            // Load current pricing from database
+            await loadCurrentPricing();
+        }
+
+        // Load current pricing from database
+        async function loadCurrentPricing() {
             try {
-                const response = await fetch('/.netlify/functions/processPayment', {
+                const response = await fetch('/.netlify/functions/managePaymentSettings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'getPricing' })
+                    body: JSON.stringify({ action: 'getSettings' })
                 });
                 
                 const data = await response.json();
-                if (data.success) {
-                    // Update pricing display if needed
-                    console.log('Current pricing:', data);
+                if (data.success && data.settings) {
+                    const discountPrice = data.settings.discount_price || '36.00';
+                    const lifetimePrice = data.settings.lifetime_price || '68.00';
+                    const discountEndDate = data.settings.discount_end_date || '2025-08-31';
+                    
+                    // Check if discount period is still active
+                    const endDate = new Date(discountEndDate);
+                    const now = new Date();
+                    const isDiscountActive = now <= endDate;
+                    
+                    // Update price display
+                    const currentPriceElement = document.getElementById('currentPrice');
+                    const priceDescriptionElement = document.getElementById('priceDescription');
+                    
+                    if (currentPriceElement && priceDescriptionElement) {
+                        if (isDiscountActive) {
+                            currentPriceElement.textContent = `$${discountPrice}`;
+                            priceDescriptionElement.textContent = 'Discount Price - Limited Time';
+                            
+                            // Update the "after" text
+                            const afterTextElement = priceDescriptionElement.nextElementSibling;
+                            if (afterTextElement) {
+                                const endDateFormatted = endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                                afterTextElement.textContent = `After ${endDateFormatted}: $${lifetimePrice} Lifetime`;
+                            }
+                        } else {
+                            currentPriceElement.textContent = `$${lifetimePrice}`;
+                            priceDescriptionElement.textContent = 'Lifetime Access';
+                            
+                            // Update the "after" text
+                            const afterTextElement = priceDescriptionElement.nextElementSibling;
+                            if (afterTextElement) {
+                                afterTextElement.textContent = 'One-time payment, lifetime access';
+                            }
+                        }
+                    }
+                    
+                    console.log('Pricing updated:', { discountPrice, lifetimePrice, isDiscountActive });
                 }
             } catch (error) {
                 console.error('Error loading pricing:', error);
+                // Keep default values if loading fails
             }
         }
+
         // Handle purchase button click
         async function handlePurchase() {
             const email = document.getElementById('buyEmail').value;

@@ -806,6 +806,47 @@
             }
         }
         
+        // Test PayPal connection silently (without button interaction)
+        async function testPayPalConnectionSilent() {
+            try {
+                const statusElement = document.getElementById('connectionStatus');
+                statusElement.innerHTML = `
+                    <div class="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
+                    <span class="text-sm text-yellow-400">Testing connection...</span>
+                `;
+                
+                const response = await fetch('/.netlify/functions/processPayment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'testConnection',
+                        token: token
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusElement.innerHTML = `
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span class="text-sm text-green-400">Connected successfully</span>
+                    `;
+                } else {
+                    statusElement.innerHTML = `
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <span class="text-sm text-red-400">Connection failed: ${result.message || 'Unknown error'}</span>
+                    `;
+                }
+            } catch (error) {
+                console.error('Silent connection test error:', error);
+                const statusElement = document.getElementById('connectionStatus');
+                statusElement.innerHTML = `
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span class="text-sm text-red-400">Connection failed</span>
+                `;
+            }
+        }
+        
         // Load PayPal settings on page load
         async function loadSettings() {
             try {
@@ -838,11 +879,8 @@
                     
                     // Update connection status if PayPal is configured
                     if (settings.paypal_client_id && settings.paypal_client_secret) {
-                        const statusElement = document.getElementById('connectionStatus');
-                        statusElement.innerHTML = `
-                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                            <span class="text-sm text-yellow-400">Configured (click Test Connection to verify)</span>
-                        `;
+                        // Automatically test connection when credentials are present
+                        await testPayPalConnectionSilent();
                     }
                     
                     // Load alternative payment methods
@@ -1063,22 +1101,22 @@
             }
         }
         
-        // Add event listeners
+        // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             loadSettings();
             loadPayments();
             loadNotifications();
             
             // PayPal event listeners
-            document.getElementById('testPayPalConnection').addEventListener('click', testPayPalConnection);
-            document.getElementById('savePayPalSettings').addEventListener('click', savePayPalSettings);
-        });
-        
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSettings();
-            loadPayments();
-            loadNotifications();
+            const testButton = document.getElementById('testPayPalConnection');
+            const saveButton = document.getElementById('savePayPalSettings');
+            
+            if (testButton) {
+                testButton.addEventListener('click', testPayPalConnection);
+            }
+            if (saveButton) {
+                saveButton.addEventListener('click', savePayPalSettings);
+            }
         });
     </script>
 </body>
